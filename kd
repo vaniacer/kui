@@ -1,0 +1,430 @@
+#!/bin/bash -i
+  REMOTE=8080   # Remote port for tunneling.
+   LOCAL=8080   # Local  port for tunneling.
+  KUBCMD='ls /' # Default command to run in pods
+CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
+OBJ_LIST=(      # k8s objects to observe, list will be updated
+#-------------------+-----------------+
+#   type            | name in menu    |
+#-------------------+-----------------+
+    pod               Pods
+	job               Jobs
+    ''                '' #delimiter
+    statefulset       Statefulsets
+    replicaset        Replicasets
+    deployment        Deployments
+    daemonset         Daemonsets
+    ''                '' #delimiter
+	cronjob           Cronjobs
+	service           Services
+	event             Events
+    ''                '' #delimiter
+    componentstatuse  Componentstatuses
+    serviceaccount    Serviceaccounts
+    podtemplate       Podtemplates
+    limitrange        Limitranges
+    configmap         Configmaps
+    endpoint          Endpoints
+    secret            Secrets
+	node              Nodes
+)
+
+outputypes=(json yaml wide name)
+printf -v outputypes_list '%s|' ${outputypes[@]}
+cmds_regen(){  # Commands to run, list will be updated
+               #--------------------------------+------------------------------------------------------------+
+               #   Command name                 |   Description                                              |
+               #--------------------------------+------------------------------------------------------------+
+    descr_cmds=(   Get                            "Get this $type"
+                   Describe                       "Describe this $type"
+                   Output                         "Set output mode: ${outputypes_list%|}"                    )
+    scale_cmds=(   Scale                          "Change number of replicas in this $type"                  )
+   common_cmds=(   "${descr_cmds[@]}"             '' ''
+                   Logs                           "Get $type logs"
+                   Search                         "Grep something in logs"
+                   Container                      'Select container to run command or get logs from'         )
+  rollout_cmds=(  'Rollout restart'               "Restart this $type"
+                  'Rollout status '               "Show the status of this $type's rollout"
+                  'Rollout pause  '               "Mark the provided this $type as paused"
+                  'Rollout resume '               "Resume this paused $type"
+                  'Rollout undo   '               "Undo a previous rollout of this $type"
+                  'Rollout history'               "View rollout history of this $type"                       )
+      pod_cmds=(  'Interactive shell'             "Open interactive shell in this $type"
+                  "Execute $KUBCMD"               "Run command '\Z1$KUBCMD\Z0' in this $type"
+                  'change command'                "Cahnge command(\Z1$KUBCMD\Z0)"
+                  ''                              '' # delimiter
+                  "Port-forward $LOCAL:$REMOTE"   "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
+                  'change local port'             "Change local(\Z2$LOCAL\Z0) port"
+                  "change pod's port"             "Change pod's(\Z2$REMOTE\Z0) port"                         )
+}; cmds_regen
+
+confile=~/.kdrc
+tmpfile=/tmp/kdrc
+[[ -e $confile ]] && . "$confile"
+[[ -e $tmpfile ]] && . "$tmpfile"
+#--------------------------------------------------------------------+
+#Color picker, usage: printf $BLD$CUR$RED$BBLU'Hello World!'$DEF     |
+#-------------------------+--------------------------------+---------+
+#       Text color        |       Background color         |         |
+#-----------+-------------+--------------+-----------------+         |
+# Base color|Lighter shade| Base color   | Lighter shade   |         |
+#-----------+-------------+--------------+-----------------+         |
+BLK='\e[30m'; blk='\e[90m'; BBLK='\e[40m'; bblk='\e[100m' #| Black   |
+RED='\e[31m'; red='\e[91m'; BRED='\e[41m'; bred='\e[101m' #| Red     |
+GRN='\e[32m'; grn='\e[92m'; BGRN='\e[42m'; bgrn='\e[102m' #| Green   |
+YLW='\e[33m'; ylw='\e[93m'; BYLW='\e[43m'; bylw='\e[103m' #| Yellow  |
+BLU='\e[34m'; blu='\e[94m'; BBLU='\e[44m'; bblu='\e[104m' #| Blue    |
+MGN='\e[35m'; mgn='\e[95m'; BMGN='\e[45m'; bmgn='\e[105m' #| Magenta |
+CYN='\e[36m'; cyn='\e[96m'; BCYN='\e[46m'; bcyn='\e[106m' #| Cyan    |
+WHT='\e[37m'; wht='\e[97m'; BWHT='\e[47m'; bwht='\e[107m' #| White   |
+#-------------------------{ Effects }----------------------+---------+
+DEF='\e[0m'   #Default color and effects                             |
+BLD='\e[1m'   #Bold\brighter                                         |
+DIM='\e[2m'   #Dim\darker                                            |
+CUR='\e[3m'   #Italic font                                           |
+UND='\e[4m'   #Underline                                             |
+INV='\e[7m'   #Inverted                                              |
+COF='\e[?25l' #Cursor Off                                            |
+CON='\e[?25h' #Cursor On                                             |
+#------------------------{ Functions }-------------------------------+
+# Text positioning, usage: XY 10 10 'Hello World!'                   |
+XY(){ printf "\e[$2;${1}H$3"; }                                     #|
+# Print line, usage: line - 10 | line -= 20 | line 'Hello World!' 20 |
+line(){ printf -v _L %$2s; printf -- "${_L// /$1}"; }               #|
+# Create sequence like {0..(X-1)}, usage: que 10                     |
+que(){ printf -v _N %$1s; _N=(${_N// / 1}); printf "${!_N[*]}"; }   #|
+#--------------------------------------------------------------------+
+install_help="
+${BLD}kd$DEF requires that the package '${GRN}%s$DEF' is installed.
+Type this into the terminal and press return:
+
+    ${BLD}%s$DEF
+
+Then run ${BLD}kd$DEF again
+"
+how_to_install () {
+    which yum     &> /dev/null && installer="yum -y install $1"
+    which brew    &> /dev/null && installer="brew install $1"
+    which apt-get &> /dev/null && installer="apt-get install -y $1"
+    printf "$install_help" "$1" "$installer"
+    exit 1
+}
+
+which dialog  &> /dev/null || how_to_install dialog
+which kubectl &> /dev/null || how_to_install kubectl
+#------------------------{ Show\Edit ssh config }--------------------------------------------------
+show_conf () { clear; ssh -G $target; pause; }
+edit_conf () { $EDITOR $(grep -ril "Host[[:space:]]$target" $CONFILES); }
+
+#------------------------{ Pause function }--------------------------------------------------------
+pause () {
+    local  mess=${1:-'press any key to continue'}
+    printf "\n$COF$BLD$mess\n"; read; printf "\n$DEF$CON"
+}
+
+#------------------------{ kubectl starter }-------------------------------------------------------
+kube(){ kubectl --kubeconfig="$kubconfig" "$@"; }
+
+#------------------------{ Exit function }---------------------------------------------------------
+bye () {
+    GO
+    echo   "cluster=$cluster"   >  "$tmpfile"
+    echo "namespace=$namespace" >> "$tmpfile"
+    [[ $(uname -s) == "Darwin" ]] && ls -G || ls --color=auto
+    exit 0
+};  trap bye INT TERM SIGINT SIGTERM EXIT
+
+#------------------------{ Cursor dissable\eanable }-----------------------------------------------
+cursor () {
+    case $1 in
+         on) stty  echo; printf "$CON";;
+        off) stty -echo; printf "$COF";;
+    esac
+}
+
+#------------------------{ Waiting animation }-----------------------------------------------------
+   x=$[COLUMNS/2-3]
+   y=$[  LINES/2-3]
+sand=( ⠁  ⠂  ⠄  ' ' )
+WAIT(){
+    clear; cursor off; i=0
+    XY $[x-1]  $y    $UND$BLD$RED'       '$DEF                     # _______
+    XY $[x-1] $[y+1]         $RED'╲'$DIM$UND'     '$DEF$red'╱'$DEF # ╲_____╱
+    XY  $x    $[y+2]         $BLU'(  '$BLD$WHT'•'$BLD$BLU')'$DEF   #  (  •)
+    XY  $x    $[y+3]         $BLU' ╲'$YLW'⠖'$BLD$BLU'╱'$DEF        #   ╲⠖╱
+    XY  $x    $[y+4]         $BLU" ╱$YLW${sand[$i]}$BLD$BLU╲"$DEF  #   ╱⠂╲
+    XY  $x    $[y+5]         $BLU'('$YLW'⠴⠷⠦'$BLD$BLU')'$DEF       #  (⠴⠷⠦)
+    XY $[x-1] $[y+6]         $RED'╱'$RED'‾‾‾‾‾'$BLD$RED'╲'$DEF     # ╱‾‾‾‾‾╲
+    XY $[x-1] $[y+7]     $DIM$RED'‾‾‾‾‾‾‾'$DEF                     # ‾‾‾‾‾‾‾
+    ( while true; do sleep 0.07
+        XY $x $[y+4] $BLU" ╱$YLW${sand[$i]}$BLD$BLU╲"$DEF
+        ((i++)); (($i==${#sand[@]})) && i=0;
+    done )     &        waiter=$!
+};  GO() { [[ -e /proc/$waiter ]] && kill $waiter; cursor on; clear; }
+WAIT
+
+#------------------------{ Dialog creator }--------------------------------------------------------
+D(){
+    local type="$1"
+    local name="$2"
+    local oklb="$3"
+    local nolb="$4"
+    local opts="$5"
+    shift        5
+
+    case $type in
+          menu) local size='0 0 0';;
+      inputbox) local size='10 60';;
+    esac
+
+    dialog   $opts  --aspect  100 \
+           --colors --output-fd 1 \
+           --ok-label     "$oklb" \
+           --cancel-label "$nolb" \
+           --$type        "$name" \
+             $size   --   "$@"
+}
+
+#------------------------{ Change ports used in port-forwarding command }--------------------------
+local_port(){
+    new_local=$(D inputbox 'Change local port' CHANGE BACK '--max-input 5' $LOCAL)
+    LOCAL=${new_local:-$LOCAL}
+    cmds_regen
+}
+
+remote_port(){
+    new_remote=$(D inputbox 'Change remote port' CHANGE BACK '--max-input 5' $REMOTE)
+    REMOTE=${new_remote:-$REMOTE}
+    cmds_regen
+}
+
+#------------------------{ Change command to run in pod }------------------------------------------
+change_command(){
+    new_kubcmd=$(D inputbox 'Change command to run in pod' CHANGE BACK '--max-input 255' "$KUBCMD")
+    KUBCMD="${new_kubcmd:-$KUBCMD}"
+    cmds_regen
+}
+
+#------------------------{ Regenerate titles for dialogs }-----------------------------------------
+short_title_template='Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0'
+ full_title_template='Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s: \Z4%s\Z0\nContainer: \Z4%s\n'
+change_title(){
+    printf -v short_title "$short_title_template" $cluster $namespace
+    printf -v  full_title  "$full_title_template" $cluster $namespace ${type^} $object $container
+}
+
+#------------------------{ Change grep search pattern }--------------------------------------------
+what_to_search(){
+    search_pattern=$(D inputbox 'Search this in logs' SEARCH BACK '--max-input 255' "$search_pattern")
+	case $? in
+         0) cmds_regen;;
+      	 1) play_with_$type;;
+  	esac
+}
+
+#-----------------------------------{ Selectors }--------------------------------------------------
+select_cluster(){
+          cluster=$(D menu "Select cluster:" SELECT EXIT --no-items "${!clusters[@]}")
+	case $cluster:$? in
+                *:0) kubconfig="${clusters[$cluster]}"
+                     select_namespace;;
+      	        *:1) bye;;
+  	esac
+}
+
+select_output(){
+          output=$(D menu "Select output type:" SELECT EXIT --no-items "${outputypes[@]}")
+	case $output:$? in
+               *:0) inoutput="-o $output";;
+  	esac
+}
+
+select_namespace(){
+    [[  ${namespaces[@]} ]] || { WAIT; while read -r name desc; do namespaces+=("$name" "$desc"); done < <(kube get ns); GO; }
+          namespace=$(D menu "Select namespace" SELECT BACK '--extra-button --extra-label RELOAD' "${namespaces[@]}" All 'All namespaces')
+	case $namespace:$? in
+               NAME:0) select_namespace     ;;
+                All:0) ns="--all-namespaces";;
+                  *:0) ns="-n $namespace"   ;;
+      	          *:1) namespaces=()
+                       select_cluster       ;; # BACK pressed
+                  *:3) namespaces=()
+                       select_namespace     ;; # RELOAD pressed
+  	esac;              change_title
+                       select_type
+}
+
+select_type(){
+          type=$(D menu "$short_title" SELECT BACK --no-tags "${OBJ_LIST[@]}")
+	case $type:$? in
+         event:0) play_with_event ;;
+            '':0) select_type     ;;
+             *:0) cmds_regen
+                  change_title
+                  select_object   ;;
+      	     *:1) select_namespace;;
+  	esac
+}
+
+get_objects(){
+    WAIT; case $namespace in
+        All) while read -r nspc name desc; do objects+=("$name" "$desc 	$nspc"); nstore[$name]=$nspc; done < <(kube get $type $ns);;
+          *) while read -r      name desc; do objects+=("$name" "$desc"       );                      done < <(kube get $type $ns);;
+    esac;              [[ ${objects[@]} ]] || objects+=(  Empty   list        ); GO
+}
+
+declare -A nstore
+select_object(){
+    [[  ${objects[@]}  ]] || get_objects
+          object=$(D menu "$short_title" SELECT BACK '--extra-button --extra-label RELOAD' "${objects[@]}")
+	case $object:$? in
+           Empty:0) objects=()
+                    select_type    ;;
+           NAME*:0) select_object  ;;
+               *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
+                    change_title
+                    play_with_$type;;
+               *:1)      nstore=()
+                        objects=()
+                      container=
+                     containers=
+                    incontainer=
+                    select_type;;   # BACK pressed
+               *:3) objects=()
+                    select_object;; # RELOAD pressed
+  	esac
+}
+
+select_container(){
+    WAIT
+    case $type in
+          pod)  jsonpath='{.spec.containers[*].name}';;
+            *)  jsonpath='{.spec.template.spec.containers[*].name}';;
+    esac;  [[ $containers ]] || containers=$(kube get $type/$object -o jsonpath="$jsonpath"  $ns)
+    GO;        container=$(D menu "Select container:" SELECT BACK --no-items ${containers:-none})
+	case      $container:$? in
+                    none:0) container=;;
+                       *:0) change_title
+                            incontainer="-c $container";;
+  	esac;                   play_with_$type
+}
+
+#------------------------{ Common commands check }-------------------------------------------------
+common_cmds_check(){
+    case $cmd:$? in
+           '':0) play_with_$type;;
+            *:0) clear;;&
+       Search:0) what_to_search
+                 WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 | grep -Ei "$search_pattern"); GO; echo "$data"; pause;;
+         Logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1                             ); GO; echo "$data"; pause;;
+     Describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1                             ); GO; echo "$data"; pause;;
+          Get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1                             ); GO; echo "$data"; pause;;
+       Output:0) select_output   ;;
+    Container:0) select_container;;
+            *:1) select_object   ;;
+    esac
+}
+
+rollout_cmds_check(){
+	case    $cmd:$? in
+        Rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns 2>&1); GO; echo "$data"; pause;;
+    esac
+}
+
+scale_cmds_check(){
+	case $cmd:$? in
+        Scale:0) old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns)
+                 new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
+                 kube scale --replicas=$new_replicas $type/$object $ns;;
+  	esac
+}
+
+#------------------------{ Play with objects }-----------------------------------------------------
+play_with_pod(){
+                  cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" '' '' "${pod_cmds[@]}"); common_cmds_check
+	case         $cmd:$? in
+  'Interactive shell':0) kube exec              $object $incontainer   $ns --stdin --tty -- '/bin/sh' || pause;;
+        Port-forward*:0) kube port-forward      $object $LOCAL:$REMOTE $ns &  pfpid=$!; pause 'Press any key to terminate port-forwarding'; kill -TERM -- -$pfpid;;
+             Execute*:0) WAIT; data=$(kube exec $object $incontainer   $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
+     'change command':0) change_command  ;;
+  'change local port':0) local_port      ;;
+ 'change remote port':0) remote_port     ;;
+  	esac;                play_with_$type
+}
+
+play_with_deployment(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}")
+    common_cmds_check
+    scale_cmds_check
+    rollout_cmds_check
+    play_with_$type
+}
+
+play_with_statefulset(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}")
+    common_cmds_check
+    scale_cmds_check
+    rollout_cmds_check
+    play_with_$type
+}
+
+play_with_daemonset(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" '' '' "${rollout_cmds[@]}")
+    common_cmds_check
+    rollout_cmds_check
+    play_with_$type
+}
+
+play_with_replicaset(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" "${scale_cmds[@]}")
+    common_cmds_check
+    scale_cmds_check
+    play_with_$type
+}
+
+play_with_event(){
+	clear
+    kube get $type $ns
+	pause
+    select_type
+}
+
+play_with_common(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}")
+    common_cmds_check
+    play_with_common
+}
+
+play_with_descr(){
+    cmd=$(D menu "$full_title" RUN BACK '' "${descr_cmds[@]}")
+    common_cmds_check
+    play_with_descr
+}
+
+play_with_cronjob          () { play_with_descr ; }
+play_with_job              () { play_with_descr ; }
+play_with_service          () { play_with_descr ; }
+play_with_componentstatuse () { play_with_descr ; }
+play_with_serviceaccount   () { play_with_descr ; }
+play_with_podtemplate      () { play_with_descr ; }
+play_with_limitrange       () { play_with_descr ; }
+play_with_configmap        () { play_with_descr ; }
+play_with_endpoint         () { play_with_descr ; }
+play_with_secret           () { play_with_descr ; }
+play_with_node             () { play_with_descr ; }
+
+#-------------{ Create clusters list. Get cluster names from ~/.kube/config* }----------------
+declare  -A clusters
+for conf in $CONFILES; do
+    name=$(kubectl --kubeconfig="$conf" config view -o jsonpath='{.clusters[0].name}')
+    clusters["$name"]="$conf"
+done; GO
+
+[[ $cluster   ]] && kubconfig="${clusters[$cluster]}" || select_cluster
+[[ $namespace ]] && case $namespace in
+    All) ns="--all-namespaces";;
+      *) ns="-n $namespace"   ;;
+esac  || select_namespace
+change_title
+select_type
+bye
