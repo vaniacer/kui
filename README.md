@@ -10,7 +10,7 @@ Then select namespace within selected cluster.
 Now choose a type of object to observe.
 ![type](https://user-images.githubusercontent.com/18072680/120538962-c682e800-c3ef-11eb-9a96-685ef48d5d2f.png)
 
-Lets take <b>pod</b> for example:</br>
+Lets take <b>pod</b> for example.</br>
 ![pod](https://user-images.githubusercontent.com/18072680/120538940-c1259d80-c3ef-11eb-8d7d-bd61a4ef7f3b.png)
 
 You can describe it, get info in different formats(json,yaml,wide,name...), get logs, search(grep) something in logs,
