@@ -7,7 +7,7 @@ Start from selecting cluster. Clusters grabbed from config files in <b>~/.kube</
 Then select namespace within selected cluster.
 ![namespace](https://user-images.githubusercontent.com/18072680/120538971-caaf0580-c3ef-11eb-867c-d846f3b43fdc.png)
 
-Now choose a type of object to oserve.
+Now choose a type of object to observe.
 ![type](https://user-images.githubusercontent.com/18072680/120538962-c682e800-c3ef-11eb-9a96-685ef48d5d2f.png)
 
 Lets take <b>pod</b> for example:</br>
