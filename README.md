@@ -1,6 +1,6 @@
 # Kube-Dialog(kd)
 
-Dialog wrapper for kubectl utility to ease your work with k8s from cli.</br>
+Dialog wrapper for kubectl utility to ease your work with k8s from CLI.</br>
 Start from selecting cluster. Clusters grabbed from config files in <b>~/.kube</b> dir.
 ![cluster](https://user-images.githubusercontent.com/18072680/120538973-cb479c00-c3ef-11eb-8d33-8a8353a936b4.png)
 
