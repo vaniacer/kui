@@ -267,10 +267,12 @@ select_type(){
 }
 
 get_objects(){
-    WAIT; case $namespace in
-        All) while read -r nspc name desc; do objects+=("$name" "$desc 	$nspc"); nstore[$name]=$nspc; done < <(kube get $type $ns);;
-          *) while read -r      name desc; do objects+=("$name" "$desc"       );                      done < <(kube get $type $ns);;
-    esac;              [[ ${objects[@]} ]] || objects+=(  Empty   list        ); GO
+    WAIT; data=$(kube get $type $ns); GO
+    case $type:$namespace in
+          node:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
+             *:All) while read -r nspc name desc; do objects+=("$name" "$desc 	$nspc"); nstore[$name]=$nspc; done <<< "$data";;
+             *:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
+    esac;                     [[ ${objects[@]} ]] || objects+=( Empty   list          ); GO
 }
 
 declare -A nstore
