@@ -1,22 +1,24 @@
 # Kube-Dialog(kd)
 
-Dialog wrapper for kubectl utility to ease your work with k8s from cli.</br>
+Dialog wrapper for kubectl utility to ease your work with k8s from CLI.</br>
 Start from selecting cluster. Clusters grabbed from config files in <b>~/.kube</b> dir.
 ![cluster](https://user-images.githubusercontent.com/18072680/120538973-cb479c00-c3ef-11eb-8d33-8a8353a936b4.png)
 
 Then select namespace within selected cluster.
 ![namespace](https://user-images.githubusercontent.com/18072680/120538971-caaf0580-c3ef-11eb-867c-d846f3b43fdc.png)
 
-Now choose a type of object to oserve.
+Now choose a type of object to observe.
 ![type](https://user-images.githubusercontent.com/18072680/120538962-c682e800-c3ef-11eb-9a96-685ef48d5d2f.png)
 
-Lets take <b>pod</b> for example:
+Lets take <b>pod</b> for example.</br>
 ![pod](https://user-images.githubusercontent.com/18072680/120538940-c1259d80-c3ef-11eb-8d7d-bd61a4ef7f3b.png)
 
 You can describe it, get info in different formats(json,yaml,wide,name...), get logs, search(grep) something in logs,
 run commands or enter an interactive shell and do a port-forwarding. The list of commands will be updated.
 
 This is a work in progress project, so everything is a subject to change.
+
+[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FVaniacer%2Fstatus%2F1376996237631758339%3Fs%3D20)](https://twitter.com/Vaniacer/status/1400395787373322245)
 
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) Feel free to support the project!)</br>
 
