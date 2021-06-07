@@ -317,10 +317,10 @@ common_cmds_check(){
            '':0) play_with_$type;;
             *:0) clear;;&
        Search:0) what_to_search
-                 WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 | grep -Ei "$search_pattern"); GO; echo "$data"; pause;;
-         Logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1                             ); GO; echo "$data"; pause;;
-     Describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1                             ); GO; echo "$data"; pause;;
-          Get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1                             ); GO; echo "$data"; pause;;
+                 WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 ); GO; echo "$data" | grep -Ei "$search_pattern"; pause;;
+         Logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 ); GO; echo "$data" ; pause;;
+     Describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1 ); GO; echo "$data" ; pause;;
+          Get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1 ); GO; echo "$data" ; pause;;
        Output:0) select_output   ;;
     Container:0) select_container;;
             *:1) select_object   ;;
