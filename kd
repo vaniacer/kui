@@ -32,38 +32,42 @@ OBJ_LIST=(      # k8s objects to observe, list will be updated
 outputypes=(json yaml wide name)
 printf -v outputypes_list '%s|' ${outputypes[@]}
 cmds_regen(){  # Commands to run, list will be updated
-               #--------------------------------+------------------------------------------------------------+
-               #   Command name                 |   Description                                              |
-               #--------------------------------+------------------------------------------------------------+
-    descr_cmds=(   Get                            "Get this $type"
-                   Describe                       "Describe this $type"
-                   Output                         "Set output mode: ${outputypes_list%|}"                    )
-    scale_cmds=(   Scale                          "Change number of replicas in this $type"                  )
-   common_cmds=(   "${descr_cmds[@]}"             '' ''  # delimiter
-                   Logs                           "Get $type logs"
-                   Search                         "Grep something in logs"
-                   Container                      'Select container to run command or get logs from'         )
-  rollout_cmds=(  'Rollout restart'               "Restart this $type"
-                  'Rollout status '               "Show the status of this $type's rollout"
-                  'Rollout pause  '               "Mark the provided this $type as paused"
-                  'Rollout resume '               "Resume this paused $type"
-                  'Rollout undo   '               "Undo a previous rollout of this $type"
-                  'Rollout history'               "View rollout history of this $type"                       )
-     exec_cmds=(  "Execute $KUBCMD"               "Run command '\Z1$KUBCMD\Z0' in this $type"
-                  'change command'                "Cahnge command(\Z1$KUBCMD\Z0)"                            )
-     pfwd_cmds=(  "Port-forward $LOCAL:$REMOTE"   "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
-                  'change local port'             "Change local(\Z2$LOCAL\Z0) port"
-                  "change pod's port"             "Change pod's(\Z2$REMOTE\Z0) port"                         )
-    shell_cmds=(  'Interactive shell'             "Open interactive shell in this $type"                     )
-      pod_cmds=(  "${common_cmds[@]}"             '' ''  # delimiter
-                  "${shell_cmds[@]}"              '' ''  # delimiter
-                  "${exec_cmds[@]}"               '' ''  # delimiter
-                  "${pfwd_cmds[@]}"                                                                          )
-     depl_cmds=(  "${common_cmds[@]}"             '' ''  # delimiter
-                  "${scale_cmds[@]}"              '' ''  # delimiter
-                  "${rollout_cmds[@]}"            '' ''  # delimiter
-                  "${exec_cmds[@]}"               '' ''  # delimiter
-                  "${pfwd_cmds[@]}"                                                                          )
+               #-----------------------+--------------------------------------------------------------+
+               #   Command name        |   Description                                                |
+               #-----------------------+--------------------------------------------------------------+
+    descr_cmds=(   Get                   "Get this $type"
+                   Describe              "Describe this $type"
+                   Output                "Set output mode: ${outputypes_list%|}"                      )
+    scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
+   common_cmds=(   "${descr_cmds[@]}"    '' ''  # delimiter
+                   Logs                  "Get $type logs"
+                   Search                "Grep something in logs"
+                   Container             'Select container to run command or get logs from'           )
+  rollout_cmds=(  'Rollout restart'      "Restart this $type"
+                  'Rollout status '      "Show the status of this $type's rollout"
+                  'Rollout pause  '      "Mark the provided this $type as paused"
+                  'Rollout resume '      "Resume this paused $type"
+                  'Rollout undo   '      "Undo a previous rollout of this $type"
+                  'Rollout history'      "View rollout history of this $type"                         )
+     exec_cmds=(  "Execute $KUBCMD"      "Run command '\Z1$KUBCMD\Z0' in this $type"
+                  'Change command'       "Cahnge command(\Z1$KUBCMD\Z0)"                              )
+     pfwd_cmds=(  'Port-forward'         "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
+                  'Change local port'    "Change local(\Z2$LOCAL\Z0) port"
+                  "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
+    shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
+     node_cmds=(   Top                   "Show metrics for this $type"
+                   Cordon                "Mark this $type as unschedulable"
+                   Uncordon              "Mark this $type as schedulable"
+                   Drain                 "Drain this $type in preparation for maintenance"            )
+      pod_cmds=(  "${common_cmds[@]}"    '' ''  # delimiter
+                  "${shell_cmds[@]}"     '' ''  # delimiter
+                  "${exec_cmds[@]}"      '' ''  # delimiter
+                  "${pfwd_cmds[@]}"                                                                   )
+     depl_cmds=(  "${common_cmds[@]}"    '' ''  # delimiter
+                  "${scale_cmds[@]}"     '' ''  # delimiter
+                  "${rollout_cmds[@]}"   '' ''  # delimiter
+                  "${exec_cmds[@]}"      '' ''  # delimiter
+                  "${pfwd_cmds[@]}"                                                                   )
 }; cmds_regen
 
 confile=~/.kdrc
@@ -127,7 +131,9 @@ edit_conf () { $EDITOR $(grep -ril "Host[[:space:]]$target" $CONFILES); }
 #------------------------{ Pause function }--------------------------------------------------------
 pause () {
     local  mess=${1:-'press any key to continue'}
-    printf "\n$COF$BLD$mess\n"; read; printf "\n$DEF$CON"
+    printf "\n$COF$BLD$mess\n"
+    read   -srn1
+    printf "\n$DEF$CON"
 }
 
 #------------------------{ kubectl starter }-------------------------------------------------------
@@ -167,9 +173,10 @@ WAIT(){
     ( while true; do sleep 0.07
         XY $x $[y+4] $BLU" ╱$YLW${sand[$i]}$BLD$BLU╲"$DEF
         ((i++)); (($i==${#sand[@]})) && i=0;
-    done )     &        waiter=$!
-};  GO() { [[ -e /proc/$waiter ]] && kill $waiter; cursor on; clear; }
-WAIT
+    done ) & waiter=$!
+}
+
+GO() { [[ -e /proc/$waiter ]] && kill $waiter; cursor on; clear; }
 
 #------------------------{ Dialog creator }--------------------------------------------------------
 D(){
@@ -276,32 +283,31 @@ select_type(){
 
 get_objects(){
     WAIT; data=$(kube get $type $ns); GO
+    [[   $data ]] || { objects+=( Empty list ); return; }
     case $type:$namespace in
           node:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
              *:All) while read -r nspc name desc; do objects+=("$name" "$desc 	$nspc"); nstore[$name]=$nspc; done <<< "$data";;
              *:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
-    esac;                     [[ ${objects[@]} ]] || objects+=( Empty   list          ); GO
+    esac
 }
 
 declare -A nstore
 select_object(){
+    incontainer=
+    containers=
+    container=
+    nstore=()
     [[  ${objects[@]}  ]] || get_objects
           object=$(D menu "$short_title" SELECT BACK '--extra-button --extra-label RELOAD' "${objects[@]}")
 	case $object:$? in
-           Empty:0) objects=()
-                    select_type    ;;
-           NAME*:0) select_object  ;;
+           NAME*:0) select_object;;
+           Empty:0) objects=(); select_type;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
+                    cmds_regen
                     change_title
                     play_with_$type;;
-               *:1)      nstore=()
-                        objects=()
-                      container=
-                     containers=
-                    incontainer=
-                    select_type;;   # BACK pressed
-               *:3) objects=()
-                    select_object;; # RELOAD pressed
+               *:1) objects=(); select_type  ;; # BACK   pressed
+               *:3) objects=(); select_object;; # RELOAD pressed
   	esac
 }
 
@@ -319,136 +325,69 @@ select_container(){
   	esac;                   play_with_$type
 }
 
-#------------------------{ Common commands check }-------------------------------------------------
-common_cmds_check(){
-    case $cmd:$? in
-           '':0) play_with_$type;;
-            *:0) clear;;&
-       Search:0) what_to_search
-                 WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 ); GO; echo "$data" | grep -Ei "$search_pattern"; pause;;
-         Logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1 ); GO; echo "$data" ; pause;;
-     Describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1 ); GO; echo "$data" ; pause;;
-          Get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1 ); GO; echo "$data" ; pause;;
-       Output:0) select_output   ;;
-    Container:0) select_container;;
-            *:1) select_object   ;;
-    esac
-}
+sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }
 
-rollout_cmds_check(){
-	case    $cmd:$? in
-        Rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns 2>&1); GO; echo "$data"; pause;;
-    esac
-}
+#------------------------{ All commands check }----------------------------------------------------
+all_cmds_check(){
+    cmd=$(D menu "$full_title" RUN BACK '' "$@"); err=$?; clear
+    case     ${cmd,,}:$err in
+                   '':0) play_with_$type;;
+               search:0) what_to_search
+                         WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" | grep -Ei "$search_pattern" || echo 'Nothing found :('; pause;;
 
-shell_cmds_check(){
-	case    $cmd:$? in
-        'Interactive shell':0) kube exec $object $incontainer $ns --stdin --tty -- '/bin/sh' || pause;;
-    esac
-}
+                  get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1); GO; echo "$data" ; pause;;
+                 logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" ; pause;;
+             describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1); GO; echo "$data" ; pause;;
+             rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns              2>&1); GO; echo "$data" ; pause;;
+             execute*:0) WAIT; data=$(kube exec     $type/$object $incontainer $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
 
-scale_cmds_check(){
-	case $cmd:$? in
-        Scale:0) old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns)
-                 new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
-                 kube scale --replicas=$new_replicas $type/$object $ns;;
-  	esac
-}
+                scale:0) WAIT; old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns); GO
+                               new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
+                         WAIT; data=$(kube scale --replicas=$new_replicas $type/$object $ns 2>&1); GO; echo "$data";;
 
-pfwd_cmds_check(){
-    case         $cmd:$? in
-        Port-forward*:0) kube port-forward $type/$object $LOCAL:$REMOTE $ns & pfpid=$!; pause 'Press any key to terminate port-forwarding'; kill -TERM -- -$pfpid;;
+        port-forward*:0) kube port-forward $type/$object $LOCAL:$REMOTE $ns & pfpid=$!; pause 'Press any key to terminate port-forwarding'; kill -TERM -- -$pfpid;;
         *'local port':0) local_port ;;
        *'remote port':0) remote_port;;
-  	esac
-}
 
-exec_cmds_check(){
-    case         $cmd:$? in
-             Execute*:0) WAIT; data=$(kube exec $type/$object $incontainer $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
-     'change command':0) change_command;;
-    esac
+  'interactive shell':0) kube exec $object $incontainer $ns --stdin --tty -- '/bin/sh' || pause;;
+     'change command':0) change_command  ;;
+
+               output:0) select_output   ;;
+            container:0) select_container;;
+
+                  top:0) WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data" ;  pause;;
+                    *:0) sure "Sure to run \Z1kubectl ${cmd,,} $type $object\Z0?" || play_with_$type
+                         WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data" ;  pause;;
+
+                    *:1) select_object;;
+    esac;                play_with_$type
 }
 
 #------------------------{ Play with objects }-----------------------------------------------------
-play_with_pod(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${pod_cmds[@]}")
-    common_cmds_check
-    shell_cmds_check
-    exec_cmds_check
-    pfwd_cmds_check
-	play_with_$type
-}
+play_with_event            (){ WAIT; data=$(kube get $type $ns 2>&1); GO; echo "$data"; pause; select_type; }
+play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
+play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
+play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"   ; }
+play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}" ; }
+play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"  ; }
+play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_service          (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_job              (){ all_cmds_check "${descr_cmds[@]}"; }
 
-play_with_deployment(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${depl_cmds[@]}")
-    common_cmds_check
-    scale_cmds_check
-    rollout_cmds_check
-    exec_cmds_check
-    pfwd_cmds_check
-    play_with_$type
-}
-
-play_with_statefulset(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}")
-    common_cmds_check
-    scale_cmds_check
-    rollout_cmds_check
-    play_with_$type
-}
-
-play_with_daemonset(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" '' '' "${rollout_cmds[@]}")
-    common_cmds_check
-    rollout_cmds_check
-    play_with_$type
-}
-
-play_with_replicaset(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}" "${scale_cmds[@]}")
-    common_cmds_check
-    scale_cmds_check
-    play_with_$type
-}
-
-play_with_event(){
-	clear
-    kube get $type $ns
-	pause
-    select_type
-}
-
-play_with_common(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${common_cmds[@]}")
-    common_cmds_check
-    play_with_common
-}
-
-play_with_descr(){
-    cmd=$(D menu "$full_title" RUN BACK '' "${descr_cmds[@]}")
-    common_cmds_check
-    play_with_descr
-}
-
-play_with_cronjob          () { play_with_descr ; }
-play_with_job              () { play_with_descr ; }
-play_with_service          () { play_with_descr ; }
-play_with_componentstatuse () { play_with_descr ; }
-play_with_serviceaccount   () { play_with_descr ; }
-play_with_podtemplate      () { play_with_descr ; }
-play_with_limitrange       () { play_with_descr ; }
-play_with_configmap        () { play_with_descr ; }
-play_with_endpoint         () { play_with_descr ; }
-play_with_secret           () { play_with_descr ; }
-play_with_node             () { play_with_descr ; }
-
-#-------------{ Create clusters list. Get cluster names from ~/.kube/config* }----------------
+#-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
 for conf in $CONFILES; do
     name=$(kubectl --kubeconfig="$conf" config view -o jsonpath='{.clusters[0].name}')
     clusters["$name"]="$conf"
-done; GO
+done
 
 [[ $cluster   ]] && kubconfig="${clusters[$cluster]}" || select_cluster
 [[ $namespace ]] && case $namespace in
