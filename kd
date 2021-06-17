@@ -1,4 +1,4 @@
-#!/bin/bash -i
+#!/bin/bash
   REMOTE=8080   # Remote port for tunneling.
    LOCAL=8080   # Local  port for tunneling.
   KUBCMD='ls /' # Default command to run in pods
@@ -160,8 +160,10 @@ cursor () {
    x=$[COLUMNS/2-3]
    y=$[  LINES/2-3]
 sand=( ⠁  ⠂  ⠄  ' ' )
+#  {   small digits    }
+sd=(₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉)
 WAIT(){
-    clear; cursor off; i=0
+    clear; cursor off; i=0; start=$SECONDS
     XY $[x-1]  $y    $UND$BLD$RED'       '$DEF                     # _______
     XY $[x-1] $[y+1]         $RED'╲'$DIM$UND'     '$DEF$red'╱'$DEF # ╲_____╱
     XY  $x    $[y+2]         $BLU'(  '$BLD$WHT'•'$BLD$BLU')'$DEF   #  (  •)
@@ -171,7 +173,11 @@ WAIT(){
     XY $[x-1] $[y+6]         $RED'╱'$RED'‾‾‾‾‾'$BLD$RED'╲'$DEF     # ╱‾‾‾‾‾╲
     XY $[x-1] $[y+7]     $DIM$RED'‾‾‾‾‾‾‾'$DEF                     # ‾‾‾‾‾‾‾
     ( while true; do sleep 0.07
-        XY $x $[y+4] $BLU" ╱$YLW${sand[$i]}$BLD$BLU╲"$DEF
+        printf -v counter "%03d" $[SECONDS-start]
+        small="${sd[${counter:0:1}]}${sd[${counter:1:1}]}${sd[${counter:2:1}]}"
+        XY $[x-1] $[y+1] $RED'╲'$DIM$UND" $small "$DEF$red'╱'$DEF
+        XY  $x    $[y+4] $BLU" ╱$YLW${sand[$i]}$BLD$BLU╲"$DEF
+#       XY $[x+1] $[y+8] $DEF$BLD"$counter"$DEF
         ((i++)); (($i==${#sand[@]})) && i=0;
     done ) & waiter=$!
 }
@@ -192,8 +198,9 @@ D(){
       inputbox) local size='10 60';;
     esac
 
-    dialog   $opts  --aspect  100 \
-           --colors --output-fd 1 \
+    dialog   $opts                     \
+           --no-collapse --output-fd 1 \
+           --colors      --aspect  100 \
            --ok-label     "$oklb" \
            --cancel-label "$nolb" \
            --$type        "$name" \
@@ -221,11 +228,10 @@ change_command(){
 }
 
 #------------------------{ Regenerate titles for dialogs }-----------------------------------------
-short_title_template='Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0'
- full_title_template='Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s: \Z4%s\Z0\nContainer: \Z4%s\n'
 change_title(){
-    printf -v short_title "$short_title_template" $cluster $namespace
-    printf -v  full_title  "$full_title_template" $cluster $namespace ${type^} $object $container
+    printf -v    ns_title 'Cluster: \Z4%s\Z0\nSelect namespace:\n\n%s'       $cluster "$([[ $columns ]] && echo "\Z4${columns//NAME /    NAME}\Z0")"
+    printf -v short_title 'Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s\n\n%s' $cluster $namespace "Select ${type:-object}:" "$([[ $columns ]] && echo "\Z4${columns//NAME /    NAME}\Z0")"
+    printf -v  full_title 'Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s: \Z4%s\Z0\nContainer: \Z4%s\n' $cluster $namespace ${type^} $object $container
 }
 
 #------------------------{ Change grep search pattern }--------------------------------------------
@@ -237,16 +243,7 @@ what_to_search(){
   	esac
 }
 
-#-----------------------------------{ Selectors }--------------------------------------------------
-select_cluster(){
-          cluster=$(D menu "Select cluster:" SELECT EXIT --no-items "${!clusters[@]}")
-	case $cluster:$? in
-                *:0) kubconfig="${clusters[$cluster]}"
-                     select_namespace;;
-      	        *:1) bye;;
-  	esac
-}
-
+#------------------------{ Change output of get command }------------------------------------------
 select_output(){
           output=$(D menu "Select output type:" SELECT EXIT --no-items "${outputypes[@]}")
 	case $output:$? in
@@ -254,22 +251,38 @@ select_output(){
   	esac
 }
 
+#-----------------------------------{ Selectors }--------------------------------------------------
+select_cluster(){
+    cluster=$(D menu "Select cluster:" SELECT EXIT --no-items "${!clusters[@]}")
+	case $? in
+         0) kubconfig="${clusters[$cluster]}"
+            select_namespace;;
+      	 1) bye;;
+  	esac
+}
+
 select_namespace(){
-    [[  ${namespaces[@]} ]] || { WAIT; while read -r name desc; do namespaces+=("$name" "$desc"); done < <(kube get ns); GO; }
-          namespace=$(D menu "Select namespace" SELECT BACK '--extra-button --extra-label RELOAD' "${namespaces[@]}" All 'All namespaces')
+    WAIT; data=$(kube get ns)
+    columns=$(grep    NAME <<< "$data")
+    objlist=$(grep -v NAME <<< "$data")
+    change_title
+    [[  ${namespaces[@]} ]] || { while read -r name desc; do namespaces+=("$name" "$desc"); done <<< "$objlist"; }
+    GO;   namespace=$(D menu "$ns_title" SELECT BACK '--extra-button --extra-label RELOAD' All 'All namespaces' "${namespaces[@]}")
 	case $namespace:$? in
-               NAME:0) select_namespace     ;;
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
-      	          *:1) namespaces=()
+      	          *:1) columns=  namespaces=()
                        select_cluster       ;; # BACK pressed
-                  *:3) namespaces=()
+                  *:3) columns=  namespaces=()
                        select_namespace     ;; # RELOAD pressed
-  	esac;              change_title
+  	esac;              columns=
+                       change_title
                        select_type
 }
 
 select_type(){
+          type=
+    change_title
           type=$(D menu "$short_title" SELECT BACK --no-tags "${OBJ_LIST[@]}")
 	case $type:$? in
          event:0) play_with_event ;;
@@ -281,14 +294,19 @@ select_type(){
   	esac
 }
 
+custom_columns+='NAME:.metadata.name,'
+custom_columns+='NAMESPACE:.metadata.namespace'
 get_objects(){
-    WAIT; data=$(kube get $type $ns); GO
-    [[   $data ]] || { objects+=( Empty list ); return; }
-    case $type:$namespace in
-          node:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
-             *:All) while read -r nspc name desc; do objects+=("$name" "$desc 	$nspc"); nstore[$name]=$nspc; done <<< "$data";;
-             *:*  ) while read -r      name desc; do objects+=("$name" "$desc"        );                      done <<< "$data";;
-    esac
+    case $namespace in
+               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns"); GO
+                    columns=$(grep    NAME  <<<  "$data")
+                    objlist=$(grep -v NAME  <<<  "$data")
+                    while read -r name desc; do objects+=("$name" "$desc"); nstore[$name]=$desc; done <<< "${objlist:-Empty list}";;
+               *  ) WAIT; data=$(kube get $type $ns);  GO
+                    columns=$(grep    NAME  <<<  "$data")
+                    objlist=$(grep -v NAME  <<<  "$data")
+                    while read -r name desc; do objects+=("$name" "$desc");                      done <<< "${objlist:-Empty list}";;
+    esac; change_title
 }
 
 declare -A nstore
@@ -296,18 +314,19 @@ select_object(){
     incontainer=
     containers=
     container=
+    columns=
     nstore=()
     [[  ${objects[@]}  ]] || get_objects
           object=$(D menu "$short_title" SELECT BACK '--extra-button --extra-label RELOAD' "${objects[@]}")
 	case $object:$? in
            NAME*:0) select_object;;
-           Empty:0) objects=(); select_type;;
+           Empty:0) objects=(); select_type  ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
                     cmds_regen
                     change_title
                     play_with_$type;;
-               *:1) objects=(); select_type  ;; # BACK   pressed
-               *:3) objects=(); select_object;; # RELOAD pressed
+               *:1) columns= objects=(); select_type  ;; # BACK   pressed
+               *:3) columns= objects=(); select_object;; # RELOAD pressed
   	esac
 }
 
@@ -325,9 +344,9 @@ select_container(){
   	esac;                   play_with_$type
 }
 
-sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }
-
 #------------------------{ All commands check }----------------------------------------------------
+sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }  # Confirmation(yes/no) dialog
+
 all_cmds_check(){
     cmd=$(D menu "$full_title" RUN BACK '' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
@@ -345,9 +364,9 @@ all_cmds_check(){
                                new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
                          WAIT; data=$(kube scale --replicas=$new_replicas $type/$object $ns 2>&1); GO; echo "$data";;
 
-        port-forward*:0) kube port-forward $type/$object $LOCAL:$REMOTE $ns & pfpid=$!; pause 'Press any key to terminate port-forwarding'; kill -TERM -- -$pfpid;;
+        port-forward*:0) kube port-forward $type/$object $LOCAL:$REMOTE $ns & pfpid=$!; pause "Press any key to terminate port-forwarding"; pkill -P $pfpid;;
         *'local port':0) local_port ;;
-       *'remote port':0) remote_port;;
+        *"pod's port":0) remote_port;;
 
   'interactive shell':0) kube exec $object $incontainer $ns --stdin --tty -- '/bin/sh' || pause;;
      'change command':0) change_command  ;;
@@ -355,16 +374,20 @@ all_cmds_check(){
                output:0) select_output   ;;
             container:0) select_container;;
 
-                  top:0) WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data" ;  pause;;
-                    *:0) sure "Sure to run \Z1kubectl ${cmd,,} $type $object\Z0?" || play_with_$type
-                         WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data" ;  pause;;
+                  top:0) WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data"; pause;;
+                drain:0) kube_cmd="${cmd,,} $object --force --grace-period=-1 --ignore-daemonsets"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         clear; kube $kube_cmd; pause;;
+
+                    *:0) sure "Sure to run \Z1kubectl ${cmd,,} $object\Z0?" || play_with_$type
+                         WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
 
                     *:1) select_object;;
     esac;                play_with_$type
 }
 
 #------------------------{ Play with objects }-----------------------------------------------------
-play_with_event            (){ WAIT; data=$(kube get $type $ns 2>&1); GO; echo "$data"; pause; select_type; }
+play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
 play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
 play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"   ; }
