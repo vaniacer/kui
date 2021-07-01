@@ -39,10 +39,14 @@ cmds_regen(){  # Commands to run, list will be updated
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
-   common_cmds=(   "${descr_cmds[@]}"    '' ''  # delimiter
+   delete_cmds=(   Delete                "Delete this $type"                                          )
+   common_cmds=(   "${descr_cmds[@]}"
+                   ''                    ''  # delimiter
                    Logs                  "Get $type logs"
                    Search                "Grep something in logs"
-                   Container             'Select container to run command or get logs from'           )
+                   Container             'Select container to run command or get logs from'
+                   ''                    ''  # delimiter
+                   "${delete_cmds[@]}"                                                                )
   rollout_cmds=(  'Rollout restart'      "Restart this $type"
                   'Rollout status '      "Show the status of this $type's rollout"
                   'Rollout pause  '      "Mark the provided this $type as paused"
@@ -59,14 +63,21 @@ cmds_regen(){  # Commands to run, list will be updated
                    Cordon                "Mark this $type as unschedulable"
                    Uncordon              "Mark this $type as schedulable"
                    Drain                 "Drain this $type in preparation for maintenance"            )
-      pod_cmds=(  "${common_cmds[@]}"    '' ''  # delimiter
-                  "${shell_cmds[@]}"     '' ''  # delimiter
-                  "${exec_cmds[@]}"      '' ''  # delimiter
+      pod_cmds=(  "${common_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${shell_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${exec_cmds[@]}"
+                  ''                     ''  # delimiter
                   "${pfwd_cmds[@]}"                                                                   )
-     depl_cmds=(  "${common_cmds[@]}"    '' ''  # delimiter
-                  "${scale_cmds[@]}"     '' ''  # delimiter
-                  "${rollout_cmds[@]}"   '' ''  # delimiter
-                  "${exec_cmds[@]}"      '' ''  # delimiter
+     depl_cmds=(  "${common_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${scale_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${rollout_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${exec_cmds[@]}"
+                  ''                     ''  # delimiter
                   "${pfwd_cmds[@]}"                                                                   )
 }; cmds_regen
 
@@ -379,6 +390,10 @@ all_cmds_check(){
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          clear; kube $kube_cmd; pause;;
 
+               delete:0) kube_cmd="${cmd,,} $type/$object $ns"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         WAIT; kube $kube_cmd; GO; objects=(); select_object;;
+
                     *:0) sure "Sure to run \Z1kubectl ${cmd,,} $object\Z0?" || play_with_$type
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
 
@@ -402,7 +417,7 @@ play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}"; }
 play_with_job              (){ all_cmds_check "${descr_cmds[@]}"; }
 
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
