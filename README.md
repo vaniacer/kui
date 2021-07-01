@@ -18,7 +18,7 @@ run commands or enter an interactive shell and do a port-forwarding. The list of
 
 This is a work in progress project, so everything is a subject to change.
 
-[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FVaniacer%2Fstatus%2F1376996237631758339%3Fs%3D20)](https://twitter.com/Vaniacer/status/1400395787373322245)
+[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FVaniacer%2Fstatus%2F1376996237631758339%3Fs%3D20)](https://twitter.com/Vaniacer/status/1405621618626469894)
 
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) Feel free to support the project!)</br>
 
