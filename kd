@@ -280,14 +280,14 @@ select_namespace(){
     objlist=$(grep -v NAME <<< "$data")
     change_title
     [[  ${namespaces[@]} ]] || { while read -r name desc; do namespaces+=("$name" "$desc"); done <<< "$objlist"; }
-    GO;   namespace=$(D menu "$ns_title" SELECT RELOAD '--extra-button --extra-label MANAGE --help-button --help-label BACK' All 'All namespaces' "${namespaces[@]}")
+    GO;   namespace=$(D menu "$ns_title" SELECT RELOAD '--help-button --help-label BACK' All 'All namespaces' "${namespaces[@]}")
 	case $namespace:$? in
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
-      	          *:1) columns=  namespaces=()
-                       select_cluster       ;; # BACK pressed
-                  *:3) columns=  namespaces=()
+                  *:1) columns=  namespaces=()
                        select_namespace     ;; # RELOAD pressed
+      	          *:2) columns=  namespaces=()
+                       select_cluster       ;; # BACK pressed
   	esac;              columns=
                        change_title
                        select_type
@@ -384,8 +384,8 @@ all_cmds_check(){
   'interactive shell':0) kube exec $object $incontainer $ns --stdin --tty -- '/bin/sh' || pause;;
      'change command':0) change_command  ;;
 
-            'suspend':0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : true }}" ;;
-          'unsuspend':0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : false }}";;
+              suspend:0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : true }}" ;;
+            unsuspend:0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : false }}";;
 
                output:0) select_output   ;;
             container:0) select_container;;
