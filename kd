@@ -59,6 +59,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Change local port'    "Change local(\Z2$LOCAL\Z0) port"
                   "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
     shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
+     cron_cmds=(  'Suspend'              "Suspend this $type"
+                  'Unsuspend'            "Unsuspend this $type"                                       )
      node_cmds=(   Top                   "Show metrics for this $type"
                    Cordon                "Mark this $type as unschedulable"
                    Uncordon              "Mark this $type as schedulable"
@@ -278,7 +280,7 @@ select_namespace(){
     objlist=$(grep -v NAME <<< "$data")
     change_title
     [[  ${namespaces[@]} ]] || { while read -r name desc; do namespaces+=("$name" "$desc"); done <<< "$objlist"; }
-    GO;   namespace=$(D menu "$ns_title" SELECT BACK '--extra-button --extra-label RELOAD' All 'All namespaces' "${namespaces[@]}")
+    GO;   namespace=$(D menu "$ns_title" SELECT RELOAD '--extra-button --extra-label MANAGE --help-button --help-label BACK' All 'All namespaces' "${namespaces[@]}")
 	case $namespace:$? in
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
@@ -382,6 +384,9 @@ all_cmds_check(){
   'interactive shell':0) kube exec $object $incontainer $ns --stdin --tty -- '/bin/sh' || pause;;
      'change command':0) change_command  ;;
 
+            'suspend':0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : true }}" ;;
+          'unsuspend':0) kube patch $type/$object $ns -p "{\"spec\" : {\"suspend\" : false }}";;
+
                output:0) select_output   ;;
             container:0) select_container;;
 
@@ -415,8 +420,8 @@ play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}" '' '' "${cron_cmds[@]}"  ; }
 play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}"; }
 play_with_job              (){ all_cmds_check "${descr_cmds[@]}"; }
 
