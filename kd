@@ -39,7 +39,8 @@ cmds_regen(){  # Commands to run, list will be updated
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
-   delete_cmds=(   Delete                "Delete this $type"                                          )
+   delete_cmds=(   Delete                "Delete this $type"
+                   Termination           "Delete this $type using --force"                            )
    common_cmds=(   "${descr_cmds[@]}"
                    ''                    ''  # delimiter
                    Logs                  "Get $type logs"
@@ -397,7 +398,11 @@ all_cmds_check(){
 
                delete:0) kube_cmd="${cmd,,} $type/$object $ns"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
-                         WAIT; kube $kube_cmd; GO; objects=(); select_object;;
+                         WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
+
+          termination:0) kube_cmd="delete $type/$object $ns --force --grace-period=0"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
 
                     *:0) sure "Sure to run \Z1kubectl ${cmd,,} $object\Z0?" || play_with_$type
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
