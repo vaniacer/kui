@@ -1,9 +1,10 @@
 #!/bin/bash
-  REMOTE=8080   # Remote port for tunneling.
-   LOCAL=8080   # Local  port for tunneling.
-  KUBCMD='ls /' # Default command to run in pods
+  REMOTE=8080    # Remote port for tunneling.
+   LOCAL=8080    # Local  port for tunneling.
+  EDITOR=nano    # Default editor
+  KUBCMD='ls /'  # Default command to run in pods
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
-OBJ_LIST=(      # k8s objects to observe, list will be updated
+OBJ_LIST=(       # k8s objects to observe, list will be updated
 #-------------------+-----------------+
 #   type            | name in menu    |
 #-------------------+-----------------+
@@ -46,6 +47,7 @@ cmds_regen(){  # Commands to run, list will be updated
                    Logs                  "Get $type logs"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
+                   Edit                  "Edit this $type"
                    ''                    ''  # delimiter
                    "${delete_cmds[@]}"                                                                )
   rollout_cmds=(  'Rollout restart'      "Restart this $type"
@@ -395,7 +397,7 @@ all_cmds_check(){
                 drain:0) kube_cmd="${cmd,,} $object --force --grace-period=-1 --ignore-daemonsets"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          clear; kube $kube_cmd; pause;;
-
+                 edit:0) KUBE_EDITOR=$EDITOR kube edit $type/$object $ns;;
                delete:0) kube_cmd="${cmd,,} $type/$object $ns"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
