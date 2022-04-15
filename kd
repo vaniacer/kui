@@ -310,20 +310,33 @@ select_type(){
   	esac
 }
 
+select_labels(){
+    labels=$(D inputbox 'Enter labels to use:' SET BACK '--max-input 255 --extra-button --extra-label SELECT' "$labels")
+    case $? in
+         0) columns= objects=();;
+         3) WAIT; labels_list=($(kube get $type $ns --show-labels | awk '{print $NF}' | tr , '\n' | sort -u | grep -vi labels)); GO
+            labels=$(D menu "Select label:" SELECT BACK --no-items "${labels_list[@]}")
+            columns= objects=();;
+    esac;   select_object
+
+}
+
 custom_columns+='NAME:.metadata.name,'
 custom_columns+='NAMESPACE:.metadata.namespace'
-get_objects(){
+get_objects(){       with_labels=
+    [[ $labels ]] && with_labels="-l $labels"
     case $namespace in
-               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns"); GO
+               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns" $with_labels); GO
                     columns=$(grep    NAME  <<<  "$data")
                     objlist=$(grep -v NAME  <<<  "$data")
                     while read -r name desc; do objects+=("$name" "$desc"); nstore[$name]=$desc; done <<< "${objlist:-Empty list}";;
-               *  ) WAIT; data=$(kube get $type $ns);  GO
+               *  ) WAIT; data=$(kube get $type $ns $with_labels); GO
                     columns=$(grep    NAME  <<<  "$data")
                     objlist=$(grep -v NAME  <<<  "$data")
                     while read -r name desc; do objects+=("$name" "$desc");                      done <<< "${objlist:-Empty list}";;
     esac; change_title
 }
+
 
 declare -A nstore
 select_object(){
@@ -333,7 +346,7 @@ select_object(){
     columns=
     nstore=()
     [[  ${objects[@]}  ]] || get_objects
-          object=$(D menu "$short_title" SELECT BACK '--extra-button --extra-label RELOAD' "${objects[@]}")
+          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label BACK' "${objects[@]}")
 	case $object:$? in
            NAME*:0) select_object;;
            Empty:0) objects=(); select_type  ;;
@@ -341,7 +354,8 @@ select_object(){
                     cmds_regen
                     change_title
                     play_with_$type;;
-               *:1) columns= objects=(); select_type  ;; # BACK   pressed
+               *:1) select_labels  ;; # LABELS pressed
+               *:2) columns= objects=(); select_type  ;; # BACK   pressed
                *:3) columns= objects=(); select_object;; # RELOAD pressed
   	esac
 }
