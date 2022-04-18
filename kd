@@ -244,10 +244,11 @@ change_command(){
 }
 
 #------------------------{ Regenerate titles for dialogs }-----------------------------------------
-change_title(){
-    printf -v    ns_title 'Cluster: \Z4%s\Z0\nSelect namespace:\n\n%s'       $cluster "$([[ $columns ]] && echo "\Z4${columns//NAME /    NAME}\Z0")"
-    printf -v short_title 'Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s\n\n%s' $cluster $namespace "Select ${type:-object}:" "$([[ $columns ]] && echo "\Z4${columns//NAME /    NAME}\Z0")"
-    printf -v  full_title 'Cluster: \Z4%s\Z0\nNamespace: \Z4%s\Z0\n%s: \Z4%s\Z0\nContainer: \Z4%s\n' $cluster $namespace ${type^} $object $container
+change_title(){       list_header=                                                      use_of_labels=
+    [[ $columns ]] && list_header="\Z4${columns//NAME /    NAME}\Z0" ; [[ $labels ]] && use_of_labels="Labels: \Z2$labels\Z0\\n"
+    printf -v    ns_title 'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b'       "$cluster" "$list_header"
+    printf -v short_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b\n\n%b' "$cluster" "$namespace"  "$use_of_labels""Select ${type:-object}:" "$list_header"
+    printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\n' "$cluster" "$namespace" "${type^}" "$object" "$container"
 }
 
 #------------------------{ Change grep search pattern }--------------------------------------------
@@ -314,11 +315,13 @@ select_labels(){
     labels=$(D inputbox 'Enter labels to use:' SET BACK '--max-input 255 --extra-button --extra-label SELECT' "$labels")
     case $? in
          0) columns= objects=();;
-         3) WAIT; labels_list=($(kube get $type $ns --show-labels | awk '{print $NF}' | tr , '\n' | sort -u | grep -vi labels)); GO
-            labels=$(D menu "Select label:" SELECT BACK --no-items "${labels_list[@]}")
-            columns= objects=();;
+         3) WAIT; labels_list=($(kube get $type $ns --show-labels | awk '!/LABELS/{print $NF}' | tr , '\n' | sort -u)); GO
+            label=$(D menu "Select label:" SELECT BACK "--no-items --extra-button --extra-label ADD" "${labels_list[@]}")
+            case $? in
+                 0) labels=$label  ;;
+                 3) labels+=,$label;;
+            esac ;  columns= objects=()
     esac;   select_object
-
 }
 
 custom_columns+='NAME:.metadata.name,'
