@@ -327,9 +327,10 @@ select_type(){
 }
 
 select_labels(){
-    labels=$(D inputbox 'Enter labels to use:' SET BACK '--max-input 255 --extra-button --extra-label SELECT' "$labels")
+    labels=$(D inputbox 'Enter labels to use:' SET CLEAR  '--max-input 1000 --extra-button --extra-label SELECT --help-button --help-label BACK' "$labels")
     case $? in
          0) columns= objects=();;
+         1) columns= objects=() labels=;;
          3) WAIT; labels_list=($(kube get $type $ns --show-labels | awk '!/LABELS/{print $NF}' | tr , '\n' | sort -u)); GO
             label=$(D menu "Select label:" SELECT BACK "--no-items --extra-button --extra-label ADD" "${labels_list[@]}")
             case $? in
@@ -354,7 +355,6 @@ get_objects(){       with_labels=
                     while read -r name desc; do objects+=("$name" "$desc");                      done <<< "${objlist:-Empty list}";;
     esac; change_title
 }
-
 
 declare -A nstore
 select_object(){
