@@ -396,7 +396,7 @@ select_container(){
 sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }  # Confirmation(yes/no) dialog
 
 all_cmds_check(){
-    cmd=$(D menu "$full_title" RUN BACK '' "$@"); err=$?; clear
+    cmd=$(D menu "$full_title" RUN BACK '--extra-button --extra-label CHANGE_TYPE' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
                    '':0) play_with_$type;;
                search:0) what_to_search
@@ -444,6 +444,7 @@ all_cmds_check(){
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
 
                     *:1) select_object;;
+                    *:3) columns= objects=(); select_type;;
     esac;                play_with_$type
 }
 
