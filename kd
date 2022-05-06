@@ -65,6 +65,7 @@ cmds_regen(){  # Commands to run, list will be updated
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"                                       )
      node_cmds=(   Top                   "Show metrics for this $type"
+                  'Top all'              "Show metrics for all nodes"
                    Cordon                "Mark this $type as unschedulable"
                    Uncordon              "Mark this $type as schedulable"
                    Drain                 "Drain this $type in preparation for maintenance"            )
@@ -411,6 +412,7 @@ all_cmds_check(){
             container:0) select_container;;
 
                   top:0) WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data"; pause;;
+            'top all':0) WAIT; data=$(kube   top    nodes         2>&1); GO; echo "$data"; pause;;
                 drain:0) kube_cmd="${cmd,,} $object --force --grace-period=-1 --ignore-daemonsets"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          clear; kube $kube_cmd; pause;;
