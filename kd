@@ -39,6 +39,7 @@ cmds_regen(){  # Commands to run, list will be updated
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
+    label_cmds=(   Label                 "Set this $type as label"                                    )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
    delete_cmds=(   Delete                "Delete this $type"
                    Termination           "Delete this $type using --force"                            )
@@ -245,11 +246,24 @@ change_command(){
 }
 
 #------------------------{ Regenerate titles for dialogs }-----------------------------------------
-change_title(){       list_header=                                                      use_of_labels=
-    [[ $columns ]] && list_header="\Z4${columns//NAME /    NAME}\Z0" ; [[ $labels ]] && use_of_labels="Labels: \Z2$labels\Z0\\n"
-    printf -v    ns_title 'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b'       "$cluster" "$list_header"
-    printf -v short_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b\n\n%b' "$cluster" "$namespace"  "$use_of_labels""Select ${type:-object}:" "$list_header"
-    printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\n' "$cluster" "$namespace" "${type^}" "$object" "$container"
+change_title(){       list_header=
+    [[ $columns ]] && list_header="\Z4${columns//NAME /    NAME}\Z0"
+                      use_of_labels=
+    [[ $labels  ]] && use_of_labels="Labels: \Z2$labels\Z0\\n"
+
+    printf -v    ns_title 'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b' "$cluster" "$list_header"
+    printf -v short_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b\n\n%b' \
+        "$cluster"    \
+        "$namespace"  \
+        "$use_of_labels""Select ${type:-object}:" \
+        "$list_header"
+
+    printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\n' \
+        "$cluster"   \
+        "$namespace" \
+        "$use_of_labels""${type^}" \
+        "$object" \
+        "$container"
 }
 
 #------------------------{ Change grep search pattern }--------------------------------------------
@@ -393,6 +407,7 @@ all_cmds_check(){
              describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1); GO; echo "$data" ; pause;;
              rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns              2>&1); GO; echo "$data" ; pause;;
              execute*:0) WAIT; data=$(kube exec     $type/$object $incontainer $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
+                label:0) labels="app/instance=$object"; change_title;;
 
                 scale:0) WAIT; old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns); GO
                                new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
@@ -438,7 +453,7 @@ play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
 play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"   ; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"; }
-play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}" ; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${label_cmds[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"  ; }
 play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"; }
