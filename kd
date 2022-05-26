@@ -79,6 +79,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   "${pfwd_cmds[@]}"                                                                   )
      depl_cmds=(  "${common_cmds[@]}"
                   ''                     ''  # delimiter
+                  "${label_cmds[@]}"
+                  ''                     ''  # delimiter
                   "${scale_cmds[@]}"
                   ''                     ''  # delimiter
                   "${rollout_cmds[@]}"
@@ -408,7 +410,7 @@ all_cmds_check(){
              describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1); GO; echo "$data" ; pause;;
              rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns              2>&1); GO; echo "$data" ; pause;;
              execute*:0) WAIT; data=$(kube exec     $type/$object $incontainer $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
-                label:0) labels="app/instance=$object"; change_title;;
+                label:0) labels="app=$object"; change_title;;
 
                 scale:0) WAIT; old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns); GO
                                new_replicas=$(D inputbox 'New replicas count:' SET BACK '--max-input 3' "$old_replicas")
@@ -455,7 +457,7 @@ play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
 play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"   ; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"; }
-play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${label_cmds[@]}"; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}" ; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"  ; }
 play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"; }
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"; }
