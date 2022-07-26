@@ -16,9 +16,9 @@ Lets take <b>pod</b> for example.</br>
 You can describe it, get info in different formats(json,yaml,wide,name...), get logs, search(grep) something in logs,
 run commands or enter an interactive shell and do a port-forwarding. The list of commands will be updated.
 
-This is a work in progress project, so everything is a subject to change.
-Believe me, I know what I'm doing, I'm CKA)
-![cert_small](https://user-images.githubusercontent.com/18072680/180978993-5a1e2e99-f708-4b30-b9b4-dcedd523b2b9.png)
+This is a work in progress project, so everything is a subject to change.</br>
+Trust me, i'm a CKA)</br>
+![cert_small](https://user-images.githubusercontent.com/18072680/181010960-dcd27a73-30b6-49c4-aaf2-3efbc6c6760d.png)
 
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2FVaniacer%2Fstatus%2F1376996237631758339%3Fs%3D20)](https://twitter.com/Vaniacer/status/1405621618626469894)
 
