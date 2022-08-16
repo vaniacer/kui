@@ -43,14 +43,16 @@ cmds_regen(){  # Commands to run, list will be updated
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
    delete_cmds=(   Delete                "Delete this $type"
                    Termination           "Delete this $type using --force"                            )
-   common_cmds=(   "${descr_cmds[@]}"
-                   ''                    ''  # delimiter
+   common_cmds=(  "${descr_cmds[@]}"
+                  ''                     ''  # delimiter
                    Logs                  "Get $type logs"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
                    Edit                  "Edit this $type"
-                   ''                    ''  # delimiter
-                   "${delete_cmds[@]}"                                                                )
+                  ''                     ''  # delimiter
+                  "${delete_cmds[@]}"                                                                 )
+      top_cmds=(  "Top $type"            "Show metrics for this $type"
+                  "Top ${type}s"         "Show metrics for all ${type}s"                              )
   rollout_cmds=(  'Rollout restart'      "Restart this $type"
                   'Rollout status '      "Show the status of this $type's rollout"
                   'Rollout pause  '      "Mark the provided this $type as paused"
@@ -65,12 +67,14 @@ cmds_regen(){  # Commands to run, list will be updated
     shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"                                       )
-     node_cmds=(   Top                   "Show metrics for this $type"
-                  'Top all'              "Show metrics for all nodes"
-                   Cordon                "Mark this $type as unschedulable"
+     node_cmds=(   Cordon                "Mark this $type as unschedulable"
                    Uncordon              "Mark this $type as schedulable"
-                   Drain                 "Drain this $type in preparation for maintenance"            )
+                   Drain                 "Drain this $type in preparation for maintenance"
+                  ''                     ''  # delimiter
+                  "${top_cmds[@]}"                                                                    )
       pod_cmds=(  "${common_cmds[@]}"
+                  ''                     ''  # delimiter
+                  "${top_cmds[@]}"
                   ''                     ''  # delimiter
                   "${shell_cmds[@]}"
                   ''                     ''  # delimiter
@@ -150,9 +154,14 @@ edit_conf () { $EDITOR $(grep -ril "Host[[:space:]]$target" $CONFILES); }
 
 #------------------------{ Pause function }--------------------------------------------------------
 pause () {
-    local  mess=${1:-'press any key to continue'}
+    local  mess=${1:-'Press any key to continue'}
     printf "\n$COF$BLD$mess\n"
-    read   -srn1
+    read -srn1 answer
+    [[ $1 =~ [Rr]epeat ]] && {
+        case $answer in
+             [Rr]) repeat "$kube_cmd";;
+        esac
+    }
     printf "\n$DEF$CON"
 }
 
@@ -395,6 +404,13 @@ select_container(){
   	esac;                   play_with_$type
 }
 
+repeat(){
+    kube_cmd=$1
+    local mess='Press any key to continue or R to repeat command'
+    WAIT; data=$(kube $ns $kube_cmd 2>&1); GO; echo "$data"
+    pause "$mess"
+}
+
 #------------------------{ All commands check }----------------------------------------------------
 sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }  # Confirmation(yes/no) dialog
 
@@ -405,11 +421,16 @@ all_cmds_check(){
                search:0) what_to_search
                          WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" | grep -Ei "$search_pattern" || echo 'Nothing found :('; pause;;
 
-                  get:0) WAIT; data=$(kube get      $type/$object $inoutput    $ns 2>&1); GO; echo "$data" ; pause;;
-                 logs:0) WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" ; pause;;
-             describe:0) WAIT; data=$(kube describe $type/$object              $ns 2>&1); GO; echo "$data" ; pause;;
-             rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns              2>&1); GO; echo "$data" ; pause;;
-             execute*:0) WAIT; data=$(kube exec     $type/$object $incontainer $ns -- $KUBCMD 2>&1); GO; echo "$data"; pause;;
+                  # Repeatable commands
+                  get:0) repeat "get  $type/$object $inoutput   ";;
+                 logs:0) repeat "logs $type/$object $incontainer";;
+       "top ${type}s":0) repeat "top  $type";;
+          "top $type":0) repeat "top  $type $object";;
+             execute*:0) repeat "exec $type/$object $incontainer $ns -- $KUBCMD";;
+
+             describe:0) WAIT; data=$(kube describe $type/$object $ns 2>&1); GO; echo "$data" ; pause;;
+             rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns 2>&1); GO; echo "$data" ; pause;;
+
                 label:0) labels="app=$object"; change_title;;
 
                 scale:0) WAIT; old_replicas=$(kube get $type/$object -o jsonpath="{.spec.replicas}" $ns); GO
@@ -429,8 +450,6 @@ all_cmds_check(){
                output:0) select_output   ;;
             container:0) select_container;;
 
-                  top:0) WAIT; data=$(kube ${cmd,,} $type $object 2>&1); GO; echo "$data"; pause;;
-            'top all':0) WAIT; data=$(kube   top    nodes         2>&1); GO; echo "$data"; pause;;
                 drain:0) kube_cmd="${cmd,,} $object --force --grace-period=-1 --ignore-daemonsets"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          clear; kube $kube_cmd; pause;;
