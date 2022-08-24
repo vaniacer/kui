@@ -72,7 +72,11 @@ cmds_regen(){  # Commands to run, list will be updated
                    Drain                 "Drain this $type in preparation for maintenance"
                   ''                     ''  # delimiter
                   "${top_cmds[@]}"                                                                    )
-      pod_cmds=(  "${common_cmds[@]}"
+      pod_cmds=(  "${descr_cmds[@]}"
+                  ''                     ''  # delimiter
+                   Logs                  "Get $type logs"
+                   Search                "Grep something in logs"
+                   Container             'Select container to run command or get logs from'
                   ''                     ''  # delimiter
                   "${top_cmds[@]}"
                   ''                     ''  # delimiter
