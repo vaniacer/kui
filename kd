@@ -78,6 +78,8 @@ cmds_regen(){  # Commands to run, list will be updated
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
                   ''                     ''  # delimiter
+                  "${delete_cmds[@]}"
+                  ''                     ''  # delimiter
                   "${top_cmds[@]}"
                   ''                     ''  # delimiter
                   "${shell_cmds[@]}"
