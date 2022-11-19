@@ -3,6 +3,9 @@
    LOCAL=8080    # Local  port for tunneling.
   EDITOR=nano    # Default editor
   KUBCMD='ls /'  # Default command to run in pods
+  N_BUTT=1       # Namespace quick select button
+  T_BUTT=2       # Object type(pod,deploy...) quick select button
+  C_BUTT=3       # Cluster quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #-------------------+-----------------+
@@ -36,6 +39,10 @@ cmds_regen(){  # Commands to run, list will be updated
                #-----------------------+--------------------------------------------------------------+
                #   Command name        |   Description                                                |
                #-----------------------+--------------------------------------------------------------+
+    quick_butt=(  ''     ''              '----{ Quick selection }----' '--------------------'
+                   $N_BUTT               "Go to namespace selection"
+                   $T_BUTT               "Go to object type selection"
+                   $C_BUTT               "Go to cluster selection"                                    )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -183,7 +190,7 @@ bye () {
     exit 0
 };  trap bye INT TERM SIGINT SIGTERM EXIT
 
-#------------------------{ Cursor dissable\eanable }-----------------------------------------------
+#------------------------{ Cursor disable\enable }-------------------------------------------------
 cursor () {
     case $1 in
          on) stty  echo; printf "$CON";;
@@ -264,12 +271,17 @@ change_command(){
 }
 
 #------------------------{ Regenerate titles for dialogs }-----------------------------------------
-change_title(){       list_header=
-    [[ $columns ]] && list_header="\Z4${columns//NAME /    NAME}\Z0"
+change_title(){
+    list_header=
+    [[ $columns ]] && {
+        printf -v cn "    %-$((${name_size:-40}+2))s" NAME
+        cd=$(awk '{print substr($0, index($0,$2))}' <<< "$columns")
+        list_header="\Z4$cn$cd\Z0"
+    }
                       use_of_labels=
     [[ $labels  ]] && use_of_labels="Labels: \Z2$labels\Z0\\n"
 
-    printf -v    ns_title 'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b' "$cluster" "$list_header"
+    printf -v    ns_title "$use_of_labels"'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b' "$cluster" "$list_header"
     printf -v short_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b\n\n%b' \
         "$cluster"    \
         "$namespace"  \
@@ -311,20 +323,48 @@ select_cluster(){
   	esac
 }
 
-select_namespace(){
-    WAIT; data=$(kube get ns)
-    columns=$(grep    NAME <<< "$data")
-    objlist=$(grep -v NAME <<< "$data")
+objlist_gen(){
+    name_size=$(awk 'a=length($1){};(n<a){n=a}END{print n}' <<< "$data")
+    ((name_size<40)) && name_size=40
+    mapfile -t obj_names < <(awk '{printf "%-'"$name_size"'s\n", $1}' <<< "$data")
+    mapfile -t obj_descs < <(awk '{n=split($0,a," ",b);a[1]="";b[1]="";line=""
+                                  for(i=1;i<=n;i++)line=(line a[i] b[i]);print line}' <<< "$data")
+    columns="${obj_names[0]}${obj_descs[0]}"
+    noo=${#obj_names[*]}
     change_title
-    [[  ${namespaces[@]} ]] || { while read -r name desc; do namespaces+=("$name" "$desc"); done <<< "$objlist"; }
-    GO;   namespace=$(D menu "$ns_title" SELECT RELOAD '--help-button --help-label BACK' All 'All namespaces' "${namespaces[@]}")
+    [[ $1 == namespace ]] && {
+        for ((i=1; i<noo; i++)); do
+            namespaces+=("${obj_names[$i]}" "${obj_descs[$i]}")
+        done
+        return
+    }
+    for ((i=1; i<noo; i++)); do
+        objects+=("${obj_names[$i]}" "${obj_descs[$i]}")
+        [[ $namespace =~ All ]] && nstore[${obj_names[$i]}]=${obj_descs[$i]}
+    done
+}
+
+select_namespace(){  with_labels=
+    [[ $labels ]] && with_labels="-l $labels"
+    [[ ${namespaces[@]} ]] || {
+        WAIT
+        data=$(kube get ns $with_labels)
+        objlist_gen namespace
+        GO
+    }
+    namespace=$(
+        D menu "$ns_title" SELECT LABELS \
+          '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
+          All 'All namespaces' "${namespaces[@]}"
+    )
 	case $namespace:$? in
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
-                  *:1) columns=  namespaces=()
-                       select_namespace     ;; # RELOAD pressed
+                  *:1) type=ns select_labels;; # LABELS pressed
       	          *:2) columns=  namespaces=()
-                       select_cluster       ;; # BACK pressed
+                       select_cluster       ;; # SELECT_CLUSTER pressed
+                  *:3) columns=  namespaces=()
+                       select_namespace     ;; # RELOAD pressed
   	esac;              columns=
                        change_title
                        select_type
@@ -333,7 +373,7 @@ select_namespace(){
 select_type(){
           type=
     change_title
-          type=$(D menu "$short_title" SELECT BACK --no-tags "${OBJ_LIST[@]}")
+          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}")
 	case $type:$? in
          event:0) play_with_event ;;
             '':0) select_type     ;;
@@ -355,23 +395,21 @@ select_labels(){
                  0) labels=$label  ;;
                  3) labels+=,$label;;
             esac ;  columns= objects=()
-    esac;   select_object
+    esac
+    case $type in
+           ns) type= namespaces=(); select_namespace;;
+            *) select_object;;
+    esac
 }
 
-custom_columns+='NAME:.metadata.name,'
-custom_columns+='NAMESPACE:.metadata.namespace'
+custom_columns='NAME:.metadata.name,NAMESPACE:.metadata.namespace'
 get_objects(){       with_labels=
     [[ $labels ]] && with_labels="-l $labels"
     case $namespace in
-               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns" $with_labels); GO
-                    columns=$(grep    NAME  <<<  "$data")
-                    objlist=$(grep -v NAME  <<<  "$data")
-                    while read -r name desc; do objects+=("$name" "$desc"); nstore[$name]=$desc; done <<< "${objlist:-Empty list}";;
-               *  ) WAIT; data=$(kube get $type $ns $with_labels); GO
-                    columns=$(grep    NAME  <<<  "$data")
-                    objlist=$(grep -v NAME  <<<  "$data")
-                    while read -r name desc; do objects+=("$name" "$desc");                      done <<< "${objlist:-Empty list}";;
-    esac; change_title
+               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
+               *  ) WAIT; data=$(kube get $type $ns $with_labels); GO;;
+    esac
+    objlist_gen
 }
 
 declare -A nstore
@@ -382,8 +420,12 @@ select_object(){
     columns=
     nstore=()
     [[  ${objects[@]}  ]] || get_objects
-          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label BACK' "${objects[@]}")
+          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
 	case $object:$? in
+	          '':0|"----{ Quick selection }----":0)     select_object    ;;
+	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
+         $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
+         $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
            NAME*:0) select_object;;
            Empty:0) objects=(); select_type  ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
@@ -391,7 +433,7 @@ select_object(){
                     change_title
                     play_with_$type;;
                *:1) select_labels  ;; # LABELS pressed
-               *:2) columns= objects=(); select_type  ;; # BACK   pressed
+               *:2) columns= objects=(); select_type  ;; # SELECT_TYPE pressed
                *:3) columns= objects=(); select_object;; # RELOAD pressed
   	esac
 }
@@ -421,8 +463,13 @@ repeat(){
 sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }  # Confirmation(yes/no) dialog
 
 all_cmds_check(){
-    cmd=$(D menu "$full_title" RUN BACK '--extra-button --extra-label CHANGE_TYPE' "$@"); err=$?; clear
+    cmd=$(D menu "$full_title" RUN BACK '' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
+                   '':0|"----{ quick selection }----":0)    play_with_$type  ;;
+              $N_BUTT:0) columns= objects=();               select_namespace ;; # quick
+              $T_BUTT:0) columns= objects=(); change_title; select_type      ;; # select
+              $C_BUTT:0) columns= objects=() namespaces=(); select_cluster   ;; # buttons
+
                    '':0) play_with_$type;;
                search:0) what_to_search
                          WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" | grep -Ei "$search_pattern" || echo 'Nothing found :('; pause;;
@@ -472,28 +519,27 @@ all_cmds_check(){
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
 
                     *:1) select_object;;
-                    *:3) columns= objects=(); select_type;;
     esac;                play_with_$type
 }
 
 #------------------------{ Play with objects }-----------------------------------------------------
 play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
-play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
-play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"; }
-play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"   ; }
-play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"; }
-play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}" ; }
-play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"  ; }
-play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_service          (){ all_cmds_check "${descr_cmds[@]}"; }
-play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}" '' '' "${cron_cmds[@]}"  ; }
-play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}"; }
-play_with_job              (){ all_cmds_check "${descr_cmds[@]}"; }
+play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}" "${quick_butt[@]}"; }
+play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${quick_butt[@]}"; }
+play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${quick_butt[@]}"; }
+play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" "${quick_butt[@]}"; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${quick_butt[@]}"; }
+play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${quick_butt[@]}"; }
+play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}" '' '' "${cron_cmds[@]}"   "${quick_butt[@]}"; }
+play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}" "${quick_butt[@]}"; }
+play_with_job              (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
 
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
