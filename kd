@@ -3,9 +3,12 @@
    LOCAL=8080    # Local  port for tunneling.
   EDITOR=nano    # Default editor
   KUBCMD='ls /'  # Default command to run in pods
-  N_BUTT=1       # Namespace quick select button
-  T_BUTT=2       # Object type(pod,deploy...) quick select button
-  C_BUTT=3       # Cluster quick select button
+  quickl='----{ Quick selection }----'
+  quickd='---------------------------'
+  F_BUTT='1     filter'         # Filter items button
+  N_BUTT='2     namespaces'     # Namespace quick select button
+  T_BUTT='3     change type'    # Object type(pod,deploy...) quick select button
+  C_BUTT='4     clusters'       # Cluster quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #-------------------+-----------------+
@@ -39,10 +42,11 @@ cmds_regen(){  # Commands to run, list will be updated
                #-----------------------+--------------------------------------------------------------+
                #   Command name        |   Description                                                |
                #-----------------------+--------------------------------------------------------------+
-    quick_butt=(  ''     ''              '----{ Quick selection }----' '--------------------'
-                   $N_BUTT               "Go to namespace selection"
-                   $T_BUTT               "Go to object type selection"
-                   $C_BUTT               "Go to cluster selection"                                    )
+    quick_butt=(  ''     ''              "$quickl" "$quickd"
+                  "$F_BUTT"              "Filter items"
+                  "$N_BUTT"              "Go to namespace selection"
+                  "$T_BUTT"              "Go to object type selection"
+                  "$C_BUTT"              "Go to cluster selection"                                    )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -280,12 +284,16 @@ change_title(){
     }
                       use_of_labels=
     [[ $labels  ]] && use_of_labels="Labels: \Z2$labels\Z0\\n"
+                      nfiltered_by=
+    [[ $nfilter ]] && nfiltered_by="(filtered \Z2\"$nfilter\"\Z0)"
+                      ofiltered_by=
+    [[ $ofilter ]] && ofiltered_by="(filtered \Z2\"$ofilter\"\Z0)"
 
-    printf -v    ns_title "$use_of_labels"'Cluster: \Z4%b\Z0\nSelect namespace:\n\n%b' "$cluster" "$list_header"
+    printf -v    ns_title "$use_of_labels""Cluster: \Z4%b\Z0\nSelect namespace$nfiltered_by:\n\n%b" "$cluster" "$list_header"
     printf -v short_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b\n\n%b' \
         "$cluster"    \
         "$namespace"  \
-        "$use_of_labels""Select ${type:-object}:" \
+        "$use_of_labels""$filtered_by""Select ${type:-object}$ofiltered_by:" \
         "$list_header"
 
     printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\n' \
@@ -334,14 +342,43 @@ objlist_gen(){
     change_title
     [[ $1 == namespace ]] && {
         for ((i=1; i<noo; i++)); do
-            namespaces+=("${obj_names[$i]}" "${obj_descs[$i]}")
-        done
+              namespaces+=("${obj_names[$i]}" "${obj_descs[$i]}")
+        done; namespaces_to_filter=( "${namespaces[@]}" )
         return
     }
     for ((i=1; i<noo; i++)); do
-        objects+=("${obj_names[$i]}" "${obj_descs[$i]}")
-        [[ $namespace =~ All ]] && nstore[${obj_names[$i]}]=${obj_descs[$i]}
-    done
+          objects+=("${obj_names[$i]}" "${obj_descs[$i]}")
+          [[ $namespace =~ All ]] && nstore[${obj_names[$i]}]=${obj_descs[$i]}
+    done; objects_to_filter=( "${objects[@]}" )
+}
+
+filter_items(){
+    case $1 in
+         ns) to_filter=( "${namespaces_to_filter[@]}" );;
+        obj) to_filter=( "${objects_to_filter[@]}"    );;
+    esac
+
+    local  N=${#to_filter[@]} filtered_list=()
+    fpattern=$(D inputbox 'Enter filter pattern:' SET CLEAR '--max-input 200 --help-button --help-label BACK' "$fpattern")
+	case $fpattern:$? in
+	            '':0) :;;
+                 *:0) for ((n=0,d=1; n<N; n+=2,d+=2)); do
+                          [[ ${to_filter[n]} =~ $fpattern ]] && {
+                              filtered_list+=( "${to_filter[n]}" "${to_filter[d]}" )
+                          }
+                      done
+                      [[ ${filtered_list[@]} ]] || { clear; pause 'Nothing found'; $2; }
+                      case $1 in
+                           ns) namespaces=( "${filtered_list[@]}" ) nfilter=$fpattern;;
+                          obj) objects=(    "${filtered_list[@]}" ) ofilter=$fpattern;;
+                      esac;;
+                 *:1) unset filtered_list fpattern
+                      case $1 in
+                           ns) namespaces=() nfilter=;;
+                          obj)    objects=() ofilter=;;
+                      esac;;
+                 *:2)   $2;;
+	esac; change_title; $2
 }
 
 select_namespace(){  with_labels=
@@ -355,15 +392,18 @@ select_namespace(){  with_labels=
     namespace=$(
         D menu "$ns_title" SELECT LABELS \
           '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
-          All 'All namespaces' "${namespaces[@]}"
+          All 'All namespaces' "${namespaces[@]}" '' '' "$quickl" "$quickd" "$F_BUTT" 'Filter items'
     )
 	case $namespace:$? in
+	             '':0) select_namespace     ;;
+	        $quickl:0) select_namespace     ;;
+	        $F_BUTT:0) filter_items ns 'select_namespace';;
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
                   *:1) type=ns select_labels;; # LABELS pressed
-      	          *:2) columns=  namespaces=()
+      	          *:2) columns= nfilter= namespaces=()
                        select_cluster       ;; # SELECT_CLUSTER pressed
-                  *:3) columns=  namespaces=()
+                  *:3) columns= nfilter= namespaces=()
                        select_namespace     ;; # RELOAD pressed
   	esac;              columns=
                        change_title
@@ -373,8 +413,11 @@ select_namespace(){  with_labels=
 select_type(){
           type=
     change_title
-          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}")
+          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}" '' '' '' "$quickl" "$C_BUTT" "$C_BUTT")
 	case $type:$? in
+	   $quickl:0) select_type;;
+	        '':0) select_type;;
+       $C_BUTT:0) columns= nfilter= objects=() namespaces=(); select_cluster;;
          event:0) play_with_event ;;
             '':0) select_type     ;;
              *:0) cmds_regen
@@ -422,10 +465,12 @@ select_object(){
     [[  ${objects[@]}  ]] || get_objects
           object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
 	case $object:$? in
-	          '':0|"----{ Quick selection }----":0)     select_object    ;;
-	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
-         $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
-         $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
+		 $quickl:*) select_object;;
+	          '':0) select_object;;
+	     $N_BUTT:0) columns= nfilter= objects=(); namespaces=(); select_namespace ;; # quick
+         $T_BUTT:0) columns= ofilter= objects=();  change_title; select_type      ;; # select
+         $C_BUTT:0) columns= nfilter= objects=()  namespaces=(); select_cluster   ;; # buttons
+         $F_BUTT:0) filter_items obj 'select_object'                              ;; # one more
            NAME*:0) select_object;;
            Empty:0) objects=(); select_type  ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
@@ -433,8 +478,8 @@ select_object(){
                     change_title
                     play_with_$type;;
                *:1) select_labels  ;; # LABELS pressed
-               *:2) columns= objects=(); select_type  ;; # SELECT_TYPE pressed
-               *:3) columns= objects=(); select_object;; # RELOAD pressed
+               *:2) columns= ofilter= objects=(); select_type  ;; # SELECT_TYPE pressed
+               *:3) columns= ofilter= objects=(); select_object;; # RELOAD pressed
   	esac
 }
 
