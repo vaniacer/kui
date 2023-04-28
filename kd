@@ -5,35 +5,35 @@
   KUBCMD='ls /'  # Default command to run in pods
   quickl='----{ Quick selection }----'
   quickd='---------------------------'
-  F_BUTT='1     filter'         # Filter items button
-  N_BUTT='2     namespaces'     # Namespace quick select button
-  T_BUTT='3     change type'    # Object type(pod,deploy...) quick select button
-  C_BUTT='4     clusters'       # Cluster quick select button
+  F_BUTT='1     filter               ' # Filter items button
+  N_BUTT='2     namespaces           ' # Namespace quick select button
+  T_BUTT='3     change type          ' # Object type(pod,deploy...) quick select button
+  C_BUTT='4     clusters             ' # Cluster quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
-#-------------------+-----------------+
-#   type            | name in menu    |
-#-------------------+-----------------+
-    pod               Pods
-	job               Jobs
-    ''                '' #delimiter
-    statefulset       Statefulsets
-    replicaset        Replicasets
-    deployment        Deployments
-    daemonset         Daemonsets
-    ''                '' #delimiter
-	cronjob           Cronjobs
-	service           Services
-	event             Events
-    ''                '' #delimiter
-    componentstatuse  Componentstatuses
-    serviceaccount    Serviceaccounts
-    podtemplate       Podtemplates
-    limitrange        Limitranges
-    configmap         Configmaps
-    endpoint          Endpoints
-    secret            Secrets
-	node              Nodes
+#--------------------+---------------------+
+#    type            |   name in menu      |
+#--------------------+---------------------+
+     pod               Pods
+     job               Jobs
+     ''                '' #delimiter
+     statefulset       Statefulsets
+     replicaset        Replicasets
+     deployment        Deployments
+     daemonset         Daemonsets
+     ''                '' #delimiter
+     cronjob           Cronjobs
+     service           Services
+     event             Events
+     ''                '' #delimiter
+     componentstatuse  Componentstatuses
+     serviceaccount    Serviceaccounts
+     podtemplate       Podtemplates
+     limitrange        Limitranges
+     configmap         Configmaps
+     endpoint          Endpoints
+     secret            Secrets
+     node              Nodes
 )
 
 outputypes=(json yaml wide name)
@@ -43,10 +43,10 @@ cmds_regen(){  # Commands to run, list will be updated
                #   Command name        |   Description                                                |
                #-----------------------+--------------------------------------------------------------+
     quick_butt=(  ''     ''              "$quickl" "$quickd"
-                  "$F_BUTT"              "Filter items"
-                  "$N_BUTT"              "Go to namespace selection"
+                  "$F_BUTT"              "Filter items               "
+                  "$N_BUTT"              "Go to namespace selection  "
                   "$T_BUTT"              "Go to object type selection"
-                  "$C_BUTT"              "Go to cluster selection"                                    )
+                  "$C_BUTT"              "Go to cluster selection    "                                )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -359,9 +359,8 @@ filter_items(){
     esac
 
     local  N=${#to_filter[@]} filtered_list=()
-    fpattern=$(D inputbox 'Enter filter pattern:' SET CLEAR '--max-input 200 --help-button --help-label BACK' "$fpattern")
+    fpattern=$([[ $3 ]] && echo $3 || D inputbox 'Enter filter pattern:' SET CLEAR '--max-input 200 --help-button --help-label BACK' "$fpattern")
 	case $fpattern:$? in
-	            '':0) :;;
                  *:0) for ((n=0,d=1; n<N; n+=2,d+=2)); do
                           [[ ${to_filter[n]} =~ $fpattern ]] && {
                               filtered_list+=( "${to_filter[n]}" "${to_filter[d]}" )
@@ -372,7 +371,7 @@ filter_items(){
                            ns) namespaces=( "${filtered_list[@]}" ) nfilter=$fpattern;;
                           obj) objects=(    "${filtered_list[@]}" ) ofilter=$fpattern;;
                       esac;;
-                 *:1) unset filtered_list fpattern
+            *:1|'':0) unset filtered_list fpattern
                       case $1 in
                            ns) namespaces=() nfilter=;;
                           obj)    objects=() ofilter=;;
@@ -388,11 +387,12 @@ select_namespace(){  with_labels=
         data=$(kube get ns $with_labels)
         objlist_gen namespace
         GO
+        [[ $nfilter ]] && filter_items ns 'select_namespace' $nfilter
     }
     namespace=$(
         D menu "$ns_title" SELECT LABELS \
           '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
-          All 'All namespaces' "${namespaces[@]}" '' '' "$quickl" "$quickd" "$F_BUTT" 'Filter items'
+          All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" # add filter option
     )
 	case $namespace:$? in
 	             '':0) select_namespace     ;;
@@ -403,7 +403,7 @@ select_namespace(){  with_labels=
                   *:1) type=ns select_labels;; # LABELS pressed
       	          *:2) columns= nfilter= namespaces=()
                        select_cluster       ;; # SELECT_CLUSTER pressed
-                  *:3) columns= nfilter= namespaces=()
+                  *:3) columns= namespaces=()
                        select_namespace     ;; # RELOAD pressed
   	esac;              columns=
                        change_title
@@ -453,6 +453,7 @@ get_objects(){       with_labels=
                *  ) WAIT; data=$(kube get $type $ns $with_labels); GO;;
     esac
     objlist_gen
+    [[ $ofilter ]] && filter_items obj 'select_object' $ofilter
 }
 
 declare -A nstore
@@ -460,17 +461,15 @@ select_object(){
     incontainer=
     containers=
     container=
-    columns=
-    nstore=()
     [[  ${objects[@]}  ]] || get_objects
           object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
 	case $object:$? in
 		 $quickl:*) select_object;;
 	          '':0) select_object;;
-	     $N_BUTT:0) columns= nfilter= objects=(); namespaces=(); select_namespace ;; # quick
-         $T_BUTT:0) columns= ofilter= objects=();  change_title; select_type      ;; # select
-         $C_BUTT:0) columns= nfilter= objects=()  namespaces=(); select_cluster   ;; # buttons
-         $F_BUTT:0) filter_items obj 'select_object'                              ;; # one more
+	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
+         $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
+         $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
+         $F_BUTT:0) filter_items  obj   'select_object'                  ;; # one more
            NAME*:0) select_object;;
            Empty:0) objects=(); select_type  ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
@@ -478,8 +477,8 @@ select_object(){
                     change_title
                     play_with_$type;;
                *:1) select_labels  ;; # LABELS pressed
-               *:2) columns= ofilter= objects=(); select_type  ;; # SELECT_TYPE pressed
-               *:3) columns= ofilter= objects=(); select_object;; # RELOAD pressed
+               *:2) columns= objects=(); select_type  ;; # SELECT_TYPE pressed
+               *:3) columns= objects=(); select_object;; # RELOAD pressed
   	esac
 }
 
