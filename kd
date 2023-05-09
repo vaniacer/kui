@@ -77,7 +77,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
     shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
      cron_cmds=(  'Suspend'              "Suspend this $type"
-                  'Unsuspend'            "Unsuspend this $type"                                       )
+                  'Unsuspend'            "Unsuspend this $type"
+                   Edit                  "Edit this $type"                                            )
      node_cmds=(   Cordon                "Mark this $type as unschedulable"
                    Uncordon              "Mark this $type as schedulable"
                    Drain                 "Drain this $type in preparation for maintenance"
@@ -361,8 +362,11 @@ filter_items(){
     local  N=${#to_filter[@]} filtered_list=()
     fpattern=$([[ $3 ]] && echo $3 || D inputbox 'Enter filter pattern:' SET CLEAR '--max-input 200 --help-button --help-label BACK' "$fpattern")
 	case $fpattern:$? in
-                 *:0) for ((n=0,d=1; n<N; n+=2,d+=2)); do
-                          [[ ${to_filter[n]} =~ $fpattern ]] && {
+                 *:0) fpattern=${fpattern,,}
+                      for ((n=0,d=1; n<N; n+=2,d+=2)); do
+                          filter_by=${to_filter[n]}
+                          [[ $fpattern =~ \# ]] && filter_by=${to_filter[d]}
+                          [[ ${filter_by,,} =~ ${fpattern//\#} ]] && {
                               filtered_list+=( "${to_filter[n]}" "${to_filter[d]}" )
                           }
                       done
