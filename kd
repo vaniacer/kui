@@ -24,6 +24,7 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      ''                '' #delimiter
      cronjob           Cronjobs
      service           Services
+     ingress           Ingresses
      event             Events
      ''                '' #delimiter
      componentstatuse  Componentstatuses
@@ -585,6 +586,7 @@ play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[
 play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}" '' '' "${cron_cmds[@]}"   "${quick_butt[@]}"; }
 play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}" "${quick_butt[@]}"; }
 play_with_job              (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
