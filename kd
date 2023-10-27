@@ -298,12 +298,13 @@ change_title(){
         "$use_of_labels""$filtered_by""Select ${type:-object}$ofiltered_by:" \
         "$list_header"
 
-    printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\n' \
+    printf -v  full_title 'Cluster: \Z4%b\Z0\nNamespace: \Z4%b\Z0\n%b: \Z4%b\Z0\nContainer: \Z4%b\Z0\n%b' \
         "$cluster"   \
         "$namespace" \
         "$use_of_labels""${type^}" \
         "$object" \
-        "$container"
+        "$container" \
+        "$containers_info"
 }
 
 #------------------------{ Change grep search pattern }--------------------------------------------
@@ -416,7 +417,8 @@ select_namespace(){  with_labels=
 }
 
 select_type(){
-          type=
+    type=
+    containers_info=
     change_title
           type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}" '' '' '' "$quickl" "$C_BUTT" "$C_BUTT")
 	case $type:$? in
@@ -512,7 +514,19 @@ repeat(){
 sure(){ dialog --defaultno --colors --yesno "${1:-Sure?}" 5 ${#1}; }  # Confirmation(yes/no) dialog
 
 all_cmds_check(){
-    cmd=$(D menu "$full_title" RUN BACK '' "$@"); err=$?; clear
+    containers_info=
+    [[ $type = "pod" ]] && {
+        WAIT; containers_info="$(
+         echo "\Z0Containers info:\Z2"
+         ( kube $ns get $type/$object -o jsonpath='
+           {"ContainerName Ready Started RestartCount LastState\n"}{range .status.containerStatuses[*]}
+           {.name}{" "}{.ready}{" "}{.started}{" "}{.restartCount}{" "}{.lastState.terminated.reason}{"("}{.lastState.terminated.exitCode}{")"}
+           {"\n"}{end}' ) | column -t
+        )"; GO
+        change_title
+    }
+
+    cmd=$(D menu "$full_title" RUN BACK '--extra-button --extra-label RELOAD' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
                    '':0|"----{ quick selection }----":0)    play_with_$type  ;;
               $N_BUTT:0) columns= objects=();               select_namespace ;; # quick
@@ -572,24 +586,25 @@ all_cmds_check(){
 }
 
 #------------------------{ Play with objects }-----------------------------------------------------
+butt_no_filter=("${quick_butt[@]::4}" "${quick_butt[@]:6}")
 play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
-play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}" "${quick_butt[@]}"; }
-play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${quick_butt[@]}"; }
-play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${quick_butt[@]}"; }
-play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" "${quick_butt[@]}"; }
-play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${quick_butt[@]}"; }
-play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${quick_butt[@]}"; }
-play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
-play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}" '' '' "${cron_cmds[@]}"   "${quick_butt[@]}"; }
-play_with_secret           (){ all_cmds_check "${descr_cmds[@]}" '' '' "${delete_cmds[@]}" "${quick_butt[@]}"; }
-play_with_job              (){ all_cmds_check "${descr_cmds[@]}"  "${quick_butt[@]}"; }
+play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
+play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
+play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${butt_no_filter[@]}"; }
+play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"    "${butt_no_filter[@]}"; }
+play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${butt_no_filter[@]}"; }
+play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${butt_no_filter[@]}"; }
+play_with_job              (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
