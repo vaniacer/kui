@@ -596,7 +596,7 @@ play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delet
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${butt_no_filter[@]}"; }
-play_with_job              (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_job              (){ all_cmds_check "${common_cmds[@]}" "${butt_no_filter[@]}"; }
 play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
