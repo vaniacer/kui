@@ -20,6 +20,7 @@ This is a work in progress project, so everything is a subject to change.</br>
 Trust me, i'm a CKA)</br>
 ![cert_small](https://user-images.githubusercontent.com/18072680/181010960-dcd27a73-30b6-49c4-aaf2-3efbc6c6760d.png)
 
+<a href="https://t.me/sshtobash"><img src="https://telegram.org/img/website_icon.svg" width="21"></a>
 [![Twitter Follow](https://img.shields.io/twitter/follow/Vaniacer?style=social)](https://twitter.com/Vaniacer)
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) <sup>Feel free to support the project!)</sup>
 </br>
