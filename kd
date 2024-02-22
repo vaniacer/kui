@@ -80,8 +80,8 @@ cmds_regen(){  # Commands to run, list will be updated
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
                    Edit                  "Edit this $type"                                            )
-     node_cmds=(   Cordon                "Mark this $type as unschedulable"
-                   Uncordon              "Mark this $type as schedulable"
+     node_cmds=(   Condom                "Make this $type unschedulable"
+                   Uncondome             "Make this $type schedulable again"
                    Drain                 "Drain this $type in preparation for maintenance"
                   ''                     ''  # delimiter
                   "${top_cmds[@]}"                                                                    )
@@ -577,6 +577,13 @@ all_cmds_check(){
           termination:0) kube_cmd="delete $type/$object $ns --force --grace-period=0"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
+
+               condom:0) kube_cmd="cordon $object"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         WAIT; kube $kube_cmd; GO; pause;;
+            uncondome:0) kube_cmd="uncordon $object"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         WAIT; kube $kube_cmd; GO; pause;;
 
                     *:0) sure "Sure to run \Z1kubectl ${cmd,,} $object\Z0?" || play_with_$type
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
