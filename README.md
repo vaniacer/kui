@@ -4,6 +4,8 @@
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) <sup>Feel free to support the project!)</sup>
 </br>
 
+![k8s](https://github.com/vaniacer/kube-dialog/assets/18072680/d806e28f-07cb-435b-ac59-c967e3456102)
+
 Dialog wrapper for kubectl utility to ease your work with k8s from CLI.</br>
 Start from selecting cluster. Clusters grabbed from config files in <b>~/.kube</b> dir.
 ![cluster](https://user-images.githubusercontent.com/18072680/120538973-cb479c00-c3ef-11eb-8d33-8a8353a936b4.png)
