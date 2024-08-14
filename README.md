@@ -17,10 +17,13 @@ Now choose a type of object to observe.
 ![type](https://user-images.githubusercontent.com/18072680/120538962-c682e800-c3ef-11eb-9a96-685ef48d5d2f.png)
 
 Lets take <b>pod</b> for example.</br>
-![pod](https://user-images.githubusercontent.com/18072680/120538940-c1259d80-c3ef-11eb-8d7d-bd61a4ef7f3b.png)
+![pod_info](https://github.com/user-attachments/assets/ea17c71d-9122-4701-9e93-c6f191880729)
 
-You can describe it, get info in different formats(json,yaml,wide,name...), get logs, search(grep) something in logs,
-run commands or enter an interactive shell and do a port-forwarding. The list of commands will be updated.
+Basic info about pod is at the top including container's statuses. And a bunch of commands in a 'working' area. You can 
+describe the pod, get info in different formats (json, yaml, wide, name ...), get logs, search (grep) something in logs,
+execute commands or enter an interactive shell and do a port-forwarding. Or delete (terminate) this pod if needed. 
+
+And from the 'Quick selection' part you can jump to different objects of interest!
 
 This is a work in progress project, so everything is a subject to change.</br>
 Trust me, i'm a CKA)</br>
