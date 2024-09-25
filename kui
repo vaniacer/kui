@@ -79,6 +79,7 @@ cmds_regen(){  # Commands to run, list will be updated
     shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
+                   Delete                "Delete this $type"
                    Edit                  "Edit this $type"                                            )
      node_cmds=(   Condom                "Make this $type unschedulable"
                    Uncondome             "Make this $type schedulable again"
