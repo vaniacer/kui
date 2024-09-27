@@ -9,6 +9,7 @@
   N_BUTT='2     namespaces           ' # Namespace quick select button
   T_BUTT='3     change type          ' # Object type(pod,deploy...) quick select button
   C_BUTT='4     clusters             ' # Cluster quick select button
+  D_BUTT='5     nodes                ' # Nodes quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -47,7 +48,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$F_BUTT"              "Filter items               "
                   "$N_BUTT"              "Go to namespace selection  "
                   "$T_BUTT"              "Go to object type selection"
-                  "$C_BUTT"              "Go to cluster selection    "                                )
+                  "$C_BUTT"              "Go to cluster selection    "
+                  "$D_BUTT"              "Go to node selection"                                       )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -327,12 +329,20 @@ select_output(){
 
 #-----------------------------------{ Selectors }--------------------------------------------------
 select_cluster(){
-    cluster=$(D menu "Select cluster:" SELECT EXIT --no-items "${!clusters[@]}")
+    cluster=$(D menu "Select cluster:" SELECT EXIT '--no-items --extra-button --extra-label NODES' "${!clusters[@]}")
 	case $? in
          0) kubconfig="${clusters[$cluster]}"
             select_namespace;;
+         3) kubconfig="${clusters[$cluster]}"
+            select_node;;
       	 1) bye;;
   	esac
+}
+
+select_node(){
+    type=node
+    namespace=
+    select_object
 }
 
 objlist_gen(){
@@ -399,12 +409,13 @@ select_namespace(){  with_labels=
     namespace=$(
         D menu "$ns_title" SELECT LABELS \
           '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
-          All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" # add filter option
+          All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" "$D_BUTT" "Select nodes" # add filter and nodes option
     )
 	case $namespace:$? in
 	             '':0) select_namespace     ;;
 	        $quickl:0) select_namespace     ;;
 	        $F_BUTT:0) filter_items ns 'select_namespace';;
+	        $D_BUTT:0) select_node          ;;
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
                   *:1) type=ns select_labels;; # LABELS pressed
@@ -469,15 +480,18 @@ select_object(){
     incontainer=
     containers=
     container=
+    new_quick=("${quick_butt[@]}")
+    [[ $type == "node" ]] && new_quick=("${quick_butt[@]:0:12}")
     [[  ${objects[@]}  ]] || get_objects
-          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
+          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${new_quick[@]}")
 	case $object:$? in
 		 $quickl:*) select_object;;
 	          '':0) select_object;;
 	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
          $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
          $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
-         $F_BUTT:0) filter_items  obj   'select_object'                  ;; # one more
+         $D_BUTT:0) columns= objects=()  namespaces=(); select_node      ;; # nodes
+         $F_BUTT:0) filter_items  obj   'select_object'                  ;; # filter
            NAME*:0) select_object;;
            Empty:0) objects=(); select_type  ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
@@ -533,6 +547,7 @@ all_cmds_check(){
               $N_BUTT:0) columns= objects=();               select_namespace ;; # quick
               $T_BUTT:0) columns= objects=(); change_title; select_type      ;; # select
               $C_BUTT:0) columns= objects=() namespaces=(); select_cluster   ;; # buttons
+              $D_BUTT:0) columns= objects=() namespaces=(); select_node      ;;
 
                    '':0) play_with_$type;;
                search:0) what_to_search
@@ -598,7 +613,7 @@ butt_no_filter=("${quick_butt[@]::4}" "${quick_butt[@]:6}")
 play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
 play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
-play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${butt_no_filter[@]}"; }
+play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${butt_no_filter[@]:0:10}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"    "${butt_no_filter[@]}"; }
 play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
