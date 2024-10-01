@@ -10,6 +10,7 @@
   T_BUTT='3     change type          ' # Object type(pod,deploy...) quick select button
   C_BUTT='4     clusters             ' # Cluster quick select button
   D_BUTT='5     nodes                ' # Nodes quick select button
+  P_BUTT='6     top nodes            ' # Nodes quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -49,7 +50,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$N_BUTT"              "Go to namespace selection  "
                   "$T_BUTT"              "Go to object type selection"
                   "$C_BUTT"              "Go to cluster selection    "
-                  "$D_BUTT"              "Go to node selection"                                       )
+                  "$D_BUTT"              "Go to node selection"
+                  "$P_BUTT"              "Go to top node selection"                                   )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -329,10 +331,13 @@ select_output(){
 
 #-----------------------------------{ Selectors }--------------------------------------------------
 select_cluster(){
-    cluster=$(D menu "Select cluster:" SELECT EXIT '--no-items --extra-button --extra-label NODES' "${!clusters[@]}")
+    cluster=$(D menu "Select cluster:" SELECT EXIT '--no-items --extra-button --extra-label NODES --help-button --help-label TOP' "${!clusters[@]}")
 	case $? in
          0) kubconfig="${clusters[$cluster]}"
             select_namespace;;
+         2) cluster=${cluster//HELP /}
+            kubconfig="${clusters[$cluster]}"
+            select_node top;;
          3) kubconfig="${clusters[$cluster]}"
             select_node;;
       	 1) bye;;
@@ -341,8 +346,7 @@ select_cluster(){
 
 select_node(){
     type=node
-    namespace=
-    select_object
+    select_object $1
 }
 
 objlist_gen(){
@@ -409,13 +413,14 @@ select_namespace(){  with_labels=
     namespace=$(
         D menu "$ns_title" SELECT LABELS \
           '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
-          All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" "$D_BUTT" "Select nodes" # add filter and nodes option
+          All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" "$D_BUTT" "Select nodes" "$P_BUTT" "Select top nodes" # add filter and nodes option
     )
 	case $namespace:$? in
 	             '':0) select_namespace     ;;
 	        $quickl:0) select_namespace     ;;
 	        $F_BUTT:0) filter_items ns 'select_namespace';;
 	        $D_BUTT:0) select_node          ;;
+	        $P_BUTT:0) select_node top      ;;
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
                   *:1) type=ns select_labels;; # LABELS pressed
@@ -468,8 +473,8 @@ custom_columns='NAME:.metadata.name,NAMESPACE:.metadata.namespace'
 get_objects(){       with_labels=
     [[ $labels ]] && with_labels="-l $labels"
     case $namespace in
-               All) WAIT; data=$(kube get $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
-               *  ) WAIT; data=$(kube get $type $ns $with_labels); GO;;
+               All) WAIT; data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
+               *  ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
     esac
     objlist_gen
     [[ $ofilter ]] && filter_items obj 'select_object' $ofilter
@@ -480,27 +485,30 @@ select_object(){
     incontainer=
     containers=
     container=
+    modificator=
+    [[ $1 ]] && modificator=$1
     new_quick=("${quick_butt[@]}")
-    [[ $type == "node" ]] && new_quick=("${quick_butt[@]:0:12}")
-    [[  ${objects[@]}  ]] || get_objects
+    [[ $type == "node" ]] || [[ $namespace ]] || select_namespace
+    [[  ${objects[@]}  ]] || get_objects $modificator
           object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${new_quick[@]}")
 	case $object:$? in
-		 $quickl:*) select_object;;
-	          '':0) select_object;;
+		 $quickl:*) select_object $modificator;;
+	          '':0) select_object $modificator;;
 	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
          $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
          $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
          $D_BUTT:0) columns= objects=()  namespaces=(); select_node      ;; # nodes
-         $F_BUTT:0) filter_items  obj   'select_object'                  ;; # filter
-           NAME*:0) select_object;;
-           Empty:0) objects=(); select_type  ;;
+         $P_BUTT:0) columns= objects=()  namespaces=(); select_node top  ;; # top nodes
+         $F_BUTT:0) filter_items  obj   "select_object $modificator"     ;; # filter
+           NAME*:0) select_object $modificator;;
+           Empty:0) objects=(); select_type   ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
                     cmds_regen
                     change_title
                     play_with_$type;;
-               *:1) select_labels  ;; # LABELS pressed
-               *:2) columns= objects=(); select_type  ;; # SELECT_TYPE pressed
-               *:3) columns= objects=(); select_object;; # RELOAD pressed
+               *:1) select_labels     ;; # LABELS pressed
+               *:2) columns= objects=(); select_type     ;; # SELECT_TYPE pressed
+               *:3) columns= objects=(); select_object $modificator;; # RELOAD pressed
   	esac
 }
 
@@ -548,6 +556,7 @@ all_cmds_check(){
               $T_BUTT:0) columns= objects=(); change_title; select_type      ;; # select
               $C_BUTT:0) columns= objects=() namespaces=(); select_cluster   ;; # buttons
               $D_BUTT:0) columns= objects=() namespaces=(); select_node      ;;
+              $P_BUTT:0) columns= objects=() namespaces=(); select_node top  ;;
 
                    '':0) play_with_$type;;
                search:0) what_to_search
@@ -604,7 +613,7 @@ all_cmds_check(){
                     *:0) sure "Sure to run \Z1kubectl ${cmd,,} $object\Z0?" || play_with_$type
                          WAIT; data=$(kube ${cmd,,} $object 2>&1); GO; echo "$data"; pause;;
 
-                    *:1) select_object;;
+                    *:1) select_object $modificator;;
     esac;                play_with_$type
 }
 
