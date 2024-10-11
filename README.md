@@ -34,7 +34,7 @@ Trust me, i'm a CKA)</br>
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) <sup>Feel free to support the project!)</sup>
 </br>
 
-На еду по СБП<br/>
+СБПшка на еду<br/>
 ![4food](https://github.com/user-attachments/assets/db4500f2-3399-469c-995e-808b87c48f1e)
 
 DOGE: D7qJBRU3UpXES9EwtvE8YZSNAVgFEmz3py</br>
