@@ -10,7 +10,7 @@
   T_BUTT='3     change type          ' # Object type(pod,deploy...) quick select button
   C_BUTT='4     clusters             ' # Cluster quick select button
   D_BUTT='5     nodes                ' # Nodes quick select button
-  P_BUTT='6     top nodes            ' # Nodes quick select button
+  P_BUTT='6     top nodes            ' # Top nodes quick select button
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -36,7 +36,6 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      configmap         Configmaps
      endpoint          Endpoints
      secret            Secrets
-     node              Nodes
 )
 
 outputypes=(json yaml wide name)
@@ -88,6 +87,10 @@ cmds_regen(){  # Commands to run, list will be updated
      node_cmds=(   Condom                "Make this $type unschedulable"
                    Uncondome             "Make this $type schedulable again"
                    Drain                 "Drain this $type in preparation for maintenance"
+
+                  'Node pods'            "Show pods of this node"
+                  'Top node pods'        "Show top pods of this node"
+
                   ''                     ''  # delimiter
                   "${top_cmds[@]}"                                                                    )
       pod_cmds=(  "${descr_cmds[@]}"
@@ -120,8 +123,8 @@ cmds_regen(){  # Commands to run, list will be updated
 
 confile=~/.kdrc
 tmpfile=/tmp/kdrc
-[[ -e $confile ]] && . "$confile"
-[[ -e $tmpfile ]] && . "$tmpfile"
+[[ -s $confile ]] && . "$confile"
+[[ -s $tmpfile ]] && . "$tmpfile"
 #--------------------------------------------------------------------+
 #Color picker, usage: printf $BLD$CUR$RED$BBLU'Hello World!'$DEF     |
 #-------------------------+--------------------------------+---------+
@@ -367,7 +370,8 @@ objlist_gen(){
     for ((i=1; i<noo; i++)); do
           objects+=("${obj_names[$i]}" "${obj_descs[$i]}")
           [[ $namespace =~ All ]] && nstore[${obj_names[$i]}]=${obj_descs[$i]}
-    done; objects_to_filter=( "${objects[@]}" )
+    done
+    objects_to_filter=( "${objects[@]}" )
 }
 
 filter_items(){
@@ -410,17 +414,17 @@ select_namespace(){  with_labels=
         GO
         [[ $nfilter ]] && filter_items ns 'select_namespace' $nfilter
     }
+    old_namespace=$namespace
     namespace=$(
         D menu "$ns_title" SELECT LABELS \
           '--extra-button --extra-label RELOAD --help-button --help-label SELECT_CLUSTER' \
           All 'All namespaces' "${namespaces[@]}" "${quick_butt[@]:0:6}" "$D_BUTT" "Select nodes" "$P_BUTT" "Select top nodes" # add filter and nodes option
     )
 	case $namespace:$? in
-	             '':0) select_namespace     ;;
-	        $quickl:0) select_namespace     ;;
-	        $F_BUTT:0) filter_items ns 'select_namespace';;
-	        $D_BUTT:0) select_node          ;;
-	        $P_BUTT:0) select_node top      ;;
+	   $quickl:0|'':0) select_namespace                        ;;
+	        $F_BUTT:0) filter_items ns 'select_namespace'      ;;
+	        $D_BUTT:0) namespace=$old_namespace select_node    ;;
+	        $P_BUTT:0) namespace=$old_namespace select_node top;;
                 All:0) ns="--all-namespaces";;
                   *:0) ns="-n $namespace"   ;;
                   *:1) type=ns select_labels;; # LABELS pressed
@@ -435,13 +439,23 @@ select_namespace(){  with_labels=
 
 select_type(){
     type=
-    containers_info=
+    containers_info
+    type_quick=(
+        ''        "$quickl"
+        "$N_BUTT" "$N_BUTT"
+        "$C_BUTT" "$C_BUTT"
+        "$D_BUTT" "$D_BUTT"
+        "$P_BUTT" "$P_BUTT"
+    )
     change_title
-          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}" '' '' '' "$quickl" "$C_BUTT" "$C_BUTT")
+          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}" '' '' "${type_quick[@]}")
 	case $type:$? in
-	   $quickl:0) select_type;;
-	        '':0) select_type;;
-       $C_BUTT:0) columns= nfilter= objects=() namespaces=(); select_cluster;;
+            '':0) select_type;;
+       $N_BUTT:0) columns= objects=();                select_namespace ;; # quick
+       $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
+       $D_BUTT:0) columns= objects=(); select_node    ;;
+       $P_BUTT:0) columns= objects=(); select_node top;;
+
          event:0) play_with_event ;;
             '':0) select_type     ;;
              *:0) cmds_regen
@@ -472,9 +486,10 @@ select_labels(){
 custom_columns='NAME:.metadata.name,NAMESPACE:.metadata.namespace'
 get_objects(){       with_labels=
     [[ $labels ]] && with_labels="-l $labels"
-    case $namespace in
-               All) WAIT; data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
-               *  ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
+    case $namespace:$type in
+                  *:node) WAIT; data=$(kube ${1:-get} $type $with_labels); GO; [[ ${namespace,,} =~ all ]] && namespace=;;
+                All:*   ) WAIT; data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
+                  *:*   ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
     esac
     objlist_gen
     [[ $ofilter ]] && filter_items obj 'select_object' $ofilter
@@ -490,15 +505,15 @@ select_object(){
     new_quick=("${quick_butt[@]}")
     [[ $type == "node" ]] || [[ $namespace ]] || select_namespace
     [[  ${objects[@]}  ]] || get_objects $modificator
-          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${new_quick[@]}")
+          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
 	case $object:$? in
 		 $quickl:*) select_object $modificator;;
 	          '':0) select_object $modificator;;
 	     $N_BUTT:0) columns= objects=(); namespaces=(); select_namespace ;; # quick
          $T_BUTT:0) columns= objects=();  change_title; select_type      ;; # select
          $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
-         $D_BUTT:0) columns= objects=()  namespaces=(); select_node      ;; # nodes
-         $P_BUTT:0) columns= objects=()  namespaces=(); select_node top  ;; # top nodes
+         $D_BUTT:0) columns= objects=(); select_node                     ;; # nodes
+         $P_BUTT:0) columns= objects=(); select_node top                 ;; # top nodes
          $F_BUTT:0) filter_items  obj   "select_object $modificator"     ;; # filter
            NAME*:0) select_object $modificator;;
            Empty:0) objects=(); select_type   ;;
@@ -506,8 +521,8 @@ select_object(){
                     cmds_regen
                     change_title
                     play_with_$type;;
-               *:1) select_labels     ;; # LABELS pressed
-               *:2) columns= objects=(); select_type     ;; # SELECT_TYPE pressed
+               *:1) select_labels  ;; # LABELS pressed
+               *:2) columns= objects=(); select_type               ;; # SELECT_TYPE pressed
                *:3) columns= objects=(); select_object $modificator;; # RELOAD pressed
   	esac
 }
@@ -551,12 +566,12 @@ all_cmds_check(){
 
     cmd=$(D menu "$full_title" RUN BACK '--extra-button --extra-label RELOAD' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
-                   '':0|"----{ quick selection }----":0)    play_with_$type  ;;
-              $N_BUTT:0) columns= objects=();               select_namespace ;; # quick
-              $T_BUTT:0) columns= objects=(); change_title; select_type      ;; # select
-              $C_BUTT:0) columns= objects=() namespaces=(); select_cluster   ;; # buttons
-              $D_BUTT:0) columns= objects=() namespaces=(); select_node      ;;
-              $P_BUTT:0) columns= objects=() namespaces=(); select_node top  ;;
+         '':0|$quickl:0) play_with_$type;;
+              $N_BUTT:0) columns= objects=();                select_namespace ;; # quick
+              $T_BUTT:0) columns= objects=(); change_title ; select_type      ;; # select
+              $C_BUTT:0) columns= objects=()  namespaces=(); select_cluster   ;; # buttons
+              $D_BUTT:0) columns= objects=(); select_node     ;;
+              $P_BUTT:0) columns= objects=(); select_node top ;;
 
                    '':0) play_with_$type;;
                search:0) what_to_search
@@ -568,6 +583,16 @@ all_cmds_check(){
        "top ${type}s":0) repeat "top  $type";;
           "top $type":0) repeat "top  $type $object";;
              execute*:0) repeat "exec $type/$object $incontainer $ns -- $KUBCMD";;
+
+          'node pods':0) tmp_ns=${ns:-'-A'}
+                         WAIT; data=$(kube get po $tmp_ns --field-selector spec.nodeName="$object"); GO
+                         echo "$data"; pause;;
+      'top node pods':0) tmp_ns=${ns:-'-A'}
+                         WAIT
+                         [[ $ns ]] && np=$(kube get po $tmp_ns --field-selector spec.nodeName="$object" | awk '{print $1}')
+                         [[ $ns ]] || np=$(kube get po $tmp_ns --field-selector spec.nodeName="$object" | awk '{print $2}')
+                         data=$(kube top po $tmp_ns | grep -F "$np")
+                         GO; echo "$data"; pause;;
 
              describe:0) WAIT; data=$(kube describe $type/$object $ns 2>&1); GO; echo "$data" ; pause;;
              rollout*:0) WAIT; data=$(kube ${cmd,,} $type/$object $ns 2>&1); GO; echo "$data" ; pause;;
@@ -620,9 +645,9 @@ all_cmds_check(){
 #------------------------{ Play with objects }-----------------------------------------------------
 butt_no_filter=("${quick_butt[@]::4}" "${quick_butt[@]:6}")
 play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
-play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
-play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
+play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"  ''  '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
 play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${butt_no_filter[@]:0:10}"; }
+play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"    "${butt_no_filter[@]}"; }
 play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
