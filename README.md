@@ -36,4 +36,3 @@ Trust me, i'm a CKA)</br>
 
 СБПшка на еду<br/>
 ![4food](https://github.com/user-attachments/assets/db4500f2-3399-469c-995e-808b87c48f1e)
-https://github.com/user-attachments/assets/93ed3c9e-b445-4316-b617-33f4d0f055be)
