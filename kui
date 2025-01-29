@@ -61,6 +61,7 @@ cmds_regen(){  # Commands to run, list will be updated
    common_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                    Logs                  "Get $type logs"
+                  'Logs all'             "Get $type logs from all containers at once!"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
                    Edit                  "Edit this $type"
@@ -96,6 +97,7 @@ cmds_regen(){  # Commands to run, list will be updated
       pod_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                    Logs                  "Get $type logs"
+                  'Logs all'             "Get $type logs from all containers at once!"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
                   ''                     ''  # delimiter
@@ -533,7 +535,9 @@ select_container(){
           pod)  jsonpath='{.spec.containers[*].name}';;
             *)  jsonpath='{.spec.template.spec.containers[*].name}';;
     esac;  [[ $containers ]] || containers=$(kube get $type/$object -o jsonpath="$jsonpath"  $ns)
-    GO;        container=$(D menu "Select container:" SELECT BACK --no-items ${containers:-none})
+    GO
+    [[ $1 == 'containers' ]] && return
+    container=$(D menu "Select container:" SELECT BACK --no-items ${containers:-none})
 	case      $container:$? in
                     none:0) container=;;
                        *:0) change_title
@@ -575,7 +579,7 @@ all_cmds_check(){
 
                    '':0) play_with_$type;;
                search:0) what_to_search
-                         WAIT; data=$(kube logs     $type/$object $incontainer $ns 2>&1); GO; echo "$data" | grep -Ei "$search_pattern" || echo 'Nothing found :('; pause;;
+                         WAIT; data=$(kube logs $type/$object $incontainer $ns 2>&1); GO; echo "$data" | grep -Ei "$search_pattern" || echo 'Nothing found :('; pause;;
 
                   # Repeatable commands
                   get:0) repeat "get  $type/$object $inoutput   ";;
@@ -584,6 +588,12 @@ all_cmds_check(){
           "top $type":0) repeat "top  $type $object";;
              execute*:0) repeat "exec $type/$object $incontainer $ns -- $KUBCMD";;
 
+           'logs all':0) select_container containers
+                         for c in $containers; {
+                             echo "----------{ $c }----------"
+                             kube logs $type/$object $ns -c $c
+                         }
+                         pause;;
           'node pods':0) tmp_ns=${ns:-'-A'}
                          WAIT; data=$(kube get po $tmp_ns --field-selector spec.nodeName="$object"); GO
                          echo "$data"; pause;;
