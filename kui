@@ -11,6 +11,7 @@
   C_BUTT='4     clusters             ' # Cluster quick select button
   D_BUTT='5     nodes                ' # Nodes quick select button
   P_BUTT='6     top nodes            ' # Top nodes quick select button
+  W_BUTT='7     watch it             ' # Watch for a while how it's going
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -50,7 +51,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$T_BUTT"              "Go to object type selection"
                   "$C_BUTT"              "Go to cluster selection    "
                   "$D_BUTT"              "Go to node selection"
-                  "$P_BUTT"              "Go to top node selection"                                   )
+                  "$P_BUTT"              "Go to top node selection"
+                  "$W_BUTT"              "Watch for a while how it's going"                           )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Set output mode: ${outputypes_list%|}"                      )
@@ -497,6 +499,23 @@ get_objects(){       with_labels=
     [[ $ofilter ]] && filter_items obj 'select_object' $ofilter
 }
 
+watch_for_a_while(){
+    clear
+    cursor off
+    with_labels=
+    [[ $labels ]] && with_labels="-l $labels"
+    while :; do
+        case $namespace:$type in
+                      *:node) data=$(kube ${1:-get} $type $with_labels); [[ ${namespace,,} =~ all ]] && namespace=;;
+                    All:*   ) data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels);;
+                      *:*   ) data=$(kube ${1:-get} $type $ns $with_labels);;
+        esac
+        clear; echo "$data"; echo; echo "Press x to stop watching this..."
+        read -srn1 -t3 answer
+        [[ $answer =~ x|X ]] && return
+    done
+}
+
 declare -A nstore
 select_object(){
     incontainer=
@@ -517,6 +536,7 @@ select_object(){
          $D_BUTT:0) columns= objects=(); select_node                     ;; # nodes
          $P_BUTT:0) columns= objects=(); select_node top                 ;; # top nodes
          $F_BUTT:0) filter_items  obj   "select_object $modificator"     ;; # filter
+         $W_BUTT:0) watch_for_a_while;   select_object $modificator;;
            NAME*:0) select_object $modificator;;
            Empty:0) objects=(); select_type   ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
