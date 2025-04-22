@@ -78,7 +78,7 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Rollout undo   '      "Undo a previous rollout of this $type"
                   'Rollout history'      "View rollout history of this $type"                         )
      exec_cmds=(  "Execute $KUBCMD"      "Run command '\Z1$KUBCMD\Z0' in this $type"
-                  'Change command'       "Cahnge command(\Z1$KUBCMD\Z0)"                              )
+                  'Change command'       "Change command(\Z1$KUBCMD\Z0)"                              )
      pfwd_cmds=(  'Port-forward'         "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
                   'Change local port'    "Change local(\Z2$LOCAL\Z0) port"
                   "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
