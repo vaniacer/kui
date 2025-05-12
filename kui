@@ -102,6 +102,7 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Logs all'             "Get $type logs from all containers at once!"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
+                  'Controlled by'        "Jump to the object that controls this pod"
                   ''                     ''  # delimiter
                   "${delete_cmds[@]}"
                   ''                     ''  # delimiter
@@ -585,8 +586,7 @@ all_cmds_check(){
            {.name}{" "}{.ready}{" "}{.started}{" "}{.restartCount}{" "}{.lastState.terminated.reason}{"("}{.lastState.terminated.exitCode}{")"}
            {"\n"}{end}' ) | column -t
         )"; GO
-        change_title
-    }
+    };  change_title
 
     cmd=$(D menu "$full_title" RUN BACK '--extra-button --extra-label RELOAD' "$@"); err=$?; clear
     case     ${cmd,,}:$err in
@@ -608,6 +608,17 @@ all_cmds_check(){
           "top $type":0) repeat "top  $type $object";;
              execute*:0) repeat "exec $type/$object $incontainer $ns -- $KUBCMD";;
 
+      'controlled by':0) WAIT; data=$(kube describe $type/$object $ns | awk '/Controlled By:/{print $3}'); GO
+                         type=${data%/*}
+                         type=${type,,}
+                         object=${data#*/}
+                         [[ $type == 'replicaset' ]] && {
+                             type=deployment
+                             object=${object%-*}
+                         }
+                         cmds_regen
+                         change_title
+                         play_with_$type;;
            'logs all':0) select_container containers
                          for c in $containers; {
                              echo "----------{ $c }----------"
