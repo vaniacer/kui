@@ -2,7 +2,7 @@
   REMOTE=8080    # Remote port for tunneling.
    LOCAL=8080    # Local  port for tunneling.
   EDITOR=nano    # Default editor
-  KUBCMD='ls /'  # Default command to run in pods
+  KUBCMD='ps'    # Default command to run in pods
   quickl='----{ Quick selection }----'
   quickd='---------------------------'
   F_BUTT='1     filter               ' # Filter items button
@@ -55,7 +55,7 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$W_BUTT"              "Watch for a while how it's going"                           )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
-                   Output                "Set output mode: ${outputypes_list%|}"                      )
+                   Output                "Change output mode to: ${outputypes_list%|}"                      )
     label_cmds=(   Label                 "Set this $type as label"                                    )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
    delete_cmds=(   Delete                "Delete this $type"
@@ -77,12 +77,12 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Rollout resume '      "Resume this paused $type"
                   'Rollout undo   '      "Undo a previous rollout of this $type"
                   'Rollout history'      "View rollout history of this $type"                         )
-     exec_cmds=(  "Execute $KUBCMD"      "Run command '\Z1$KUBCMD\Z0' in this $type"
-                  'Change command'       "Change command(\Z1$KUBCMD\Z0)"                              )
+     exec_cmds=(  "Execute $KUBCMD"      "Run '\Z1$KUBCMD\Z0' command inside this $type"
+                  'Change command'       "Change the command"                                         )
      pfwd_cmds=(  'Port-forward'         "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
                   'Change local port'    "Change local(\Z2$LOCAL\Z0) port"
                   "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
-    shell_cmds=(  'Interactive shell'    "Open interactive shell in this $type"                       )
+    shell_cmds=(  'Interactive shell'    "Open an interactive shell inside this $type"                )
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
                    Delete                "Delete this $type"
