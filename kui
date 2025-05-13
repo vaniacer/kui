@@ -1,8 +1,8 @@
 #!/bin/bash
-  REMOTE=8080    # Remote port for tunneling.
-   LOCAL=8080    # Local  port for tunneling.
-  EDITOR=nano    # Default editor
-  KUBCMD='ps'    # Default command to run in pods
+  REMOTE=8080     # Remote port for tunneling.
+   LOCAL=8080     # Local  port for tunneling.
+  EDITOR=nano     # Default editor
+  KUBCMD='ps -ef' # Default command to run in pods
   quickl='----{ Quick selection }----'
   quickd='---------------------------'
   F_BUTT='1     filter               ' # Filter items button
