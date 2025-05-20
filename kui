@@ -12,6 +12,10 @@
   D_BUTT='5     nodes                ' # Nodes quick select button
   P_BUTT='6     top nodes            ' # Top nodes quick select button
   W_BUTT='7     watch it             ' # Watch for a while how it's going
+  R_BUTT='8     create pod           ' # Create simple test pod
+  quick_pod_name=busytest              # Pod name for simple test pod
+  quick_pod_image=busybox:1.32         # Pod image for simple test pod
+  quick_pod_command="sleep 3600"       # Pod command for simple test pod
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -52,10 +56,11 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$C_BUTT"              "Go to cluster selection    "
                   "$D_BUTT"              "Go to node selection"
                   "$P_BUTT"              "Go to top node selection"
-                  "$W_BUTT"              "Watch for a while how it's going"                           )
+                  "$W_BUTT"              "Watch for a while how it's going"
+                  "$R_BUTT"              "Create simple test pod"                                     )
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
-                   Output                "Change output mode to: ${outputypes_list%|}"                      )
+                   Output                "Change output mode to: ${outputypes_list%|}"                )
     label_cmds=(   Label                 "Set this $type as label"                                    )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
    delete_cmds=(   Delete                "Delete this $type"
@@ -524,10 +529,11 @@ select_object(){
     container=
     modificator=
     [[ $1 ]] && modificator=$1
-    new_quick=("${quick_butt[@]}")
+    new_quick=("${quick_butt[@]::18}")
+    [[ $type == "pod"  ]] &&  new_quick=("${quick_butt[@]}")
     [[ $type == "node" ]] || [[ $namespace ]] || select_namespace
     [[  ${objects[@]}  ]] || get_objects $modificator
-          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${quick_butt[@]}")
+          object=$(D menu "$short_title" SELECT LABELS '--extra-button --extra-label RELOAD --help-button --help-label SELECT_TYPE' "${objects[@]}" "${new_quick[@]}")
 	case $object:$? in
 		 $quickl:*) select_object $modificator;;
 	          '':0) select_object $modificator;;
@@ -538,6 +544,8 @@ select_object(){
          $P_BUTT:0) columns= objects=(); select_node top                 ;; # top nodes
          $F_BUTT:0) filter_items  obj   "select_object $modificator"     ;; # filter
          $W_BUTT:0) watch_for_a_while;   select_object $modificator;;
+         $R_BUTT:0) WAIT; kube run $quick_pod_name $ns --image=$quick_pod_image --command -- $quick_pod_command 2>&1; GO
+                    columns= objects=(); select_object $modificator;;
            NAME*:0) select_object $modificator;;
            Empty:0) objects=(); select_type   ;;
                *:0) [[ ${nstore[$object]} ]] && namespace=${nstore[$object]} ns="-n $namespace" objects=()
