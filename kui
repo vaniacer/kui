@@ -13,9 +13,6 @@
   P_BUTT='6     top nodes            ' # Top nodes quick select button
   W_BUTT='7     watch it             ' # Watch for a while how it's going
   R_BUTT='8     create pod           ' # Create simple test pod
-  quick_pod_name=busytest              # Pod name for simple test pod
-  quick_pod_image=busybox:1.32         # Pod image for simple test pod
-  quick_pod_command="sleep 3600"       # Pod command for simple test pod
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
 #--------------------+---------------------+
@@ -42,6 +39,21 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      endpoint          Endpoints
      secret            Secrets
 )
+
+quick_pod_name=busytest          # Pod name for simple test pod
+quick_pod_image=busybox:1.32     # Pod image for simple test pod
+quick_pod_command="sleep 3600"   # Pod command for simple test pod
+kui_yaml_file=~/.kyml            # YAML file path
+kui_yaml_def="apiVersion: v1
+kind: Pod
+metadata:
+  name: $quick_pod_name
+spec:
+  containers:
+  - name: $quick_pod_name
+    image: $quick_pod_image
+    command: ['sh', '-c', '$quick_pod_command']
+"
 
 outputypes=(json yaml wide name)
 printf -v outputypes_list '%s|' ${outputypes[@]}
@@ -261,8 +273,8 @@ D(){
     shift        5
 
     case $type in
-          menu) local size='0 0 0';;
-      inputbox) local size='10 60';;
+          menu) local size='0 0 0' ;;
+      inputbox) local size='10 60' ;;
     esac
 
     dialog   $opts                     \
@@ -447,6 +459,20 @@ select_namespace(){  with_labels=
                        select_type
 }
 
+apply(){
+    [[ -f $kui_yaml_file ]] || echo "$kui_yaml_def" > "$kui_yaml_file"
+    yaml_text=$(cat "$kui_yaml_file")
+    dialog --output-fd 1 --colors --no-collapse --ok-label APPLY --help-button --help-label BACK --extra-button --extra-label EDIT --msgbox "$yaml_text" 40 120
+    case $? in
+         0) [[ $yaml_text ]] || apply
+            WAIT; data=$(kube apply $ns -f "$kui_yaml_file"); GO
+            echo "$data"; pause
+            select_type;;
+         3) $EDITOR "$kui_yaml_file"; apply;;
+         2) select_type;;
+	esac
+}
+
 select_type(){
     type=
     containers_info
@@ -458,7 +484,7 @@ select_type(){
         "$P_BUTT" "$P_BUTT"
     )
     change_title
-          type=$(D menu "$short_title" SELECT SELECT_NAMESPACE --no-tags "${OBJ_LIST[@]}" '' '' "${type_quick[@]}")
+    type=$(D menu "$short_title" SELECT SELECT_NAMESPACE "--no-tags --extra-button --extra-label APPLY" "${OBJ_LIST[@]}" '' '' "${type_quick[@]}")
 	case $type:$? in
             '':0) select_type;;
        $N_BUTT:0) columns= objects=();                select_namespace ;; # quick
@@ -466,12 +492,13 @@ select_type(){
        $D_BUTT:0) columns= objects=(); select_node    ;;
        $P_BUTT:0) columns= objects=(); select_node top;;
 
-         event:0) play_with_event ;;
-            '':0) select_type     ;;
+         event:0) play_with_event   ;;
+            '':0) select_type       ;;
              *:0) cmds_regen
                   change_title
-                  select_object   ;;
-      	     *:1) select_namespace;;
+                  select_object     ;;
+      	     *:1) select_namespace  ;;
+      	     *:3) apply; select_type;;
   	esac
 }
 
