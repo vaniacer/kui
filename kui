@@ -722,23 +722,23 @@ all_cmds_check(){
 #------------------------{ Play with objects }-----------------------------------------------------
 butt_no_filter=("${quick_butt[@]::4}" "${quick_butt[@]:6:10}")
 play_with_event            (){ WAIT;  data=$(kube get $type $ns 2>&1);  GO;  echo "$data";  pause;  select_type; }
-play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"  ''  '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
-play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"    "${butt_no_filter[@]:0:10}"; }
-play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
-play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"    "${butt_no_filter[@]}"; }
-play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"   "${butt_no_filter[@]}"; }
-play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"    "${butt_no_filter[@]}"; }
-play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${butt_no_filter[@]}"; }
-play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${butt_no_filter[@]}"; }
-play_with_job              (){ all_cmds_check "${common_cmds[@]}" "${butt_no_filter[@]}"; }
-play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"  ''  '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
+play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"          "${butt_no_filter[@]:0:10}"; }
+play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"       "${butt_no_filter[@]}"; }
+play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
+play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"         "${butt_no_filter[@]}"; }
+play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_job              (){ all_cmds_check "${common_cmds[@]}"       "${butt_no_filter[@]}"; }
+play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
