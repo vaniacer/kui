@@ -73,6 +73,7 @@ cmds_regen(){  # Commands to run, list will be updated
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
                    Output                "Change output mode to: ${outputypes_list%|}"                )
+     edit_cmds=(   Edit                  "Edit this $type"                                            )
     label_cmds=(   Label                 "Set this $type as label"                                    )
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
    delete_cmds=(   Delete                "Delete this $type"
@@ -83,7 +84,7 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Logs all'             "Get $type logs from all containers at once!"
                    Search                "Grep something in logs"
                    Container             'Select container to run command or get logs from'
-                   Edit                  "Edit this $type"
+                  "${edit_cmds[@]}"
                   ''                     ''  # delimiter
                   "${delete_cmds[@]}"                                                                 )
       top_cmds=(  "Top $type"            "Show metrics for this $type"
@@ -103,7 +104,7 @@ cmds_regen(){  # Commands to run, list will be updated
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
                    Delete                "Delete this $type"
-                   Edit                  "Edit this $type"                                            )
+                  "${edit_cmds[@]}"                                                                   )
      node_cmds=(   Condom                "Make this $type unschedulable"
                    Uncondome             "Make this $type schedulable again"
                    Drain                 "Drain this $type in preparation for maintenance"
@@ -726,7 +727,8 @@ play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}" "${butt_no_filter[@]}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"    "${butt_no_filter[@]}"; }
 play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}" "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
+play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"   "${butt_no_filter[@]}"; }
+play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"    "${butt_no_filter[@]}"; }
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"   "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"    "${butt_no_filter[@]}"; }
 play_with_job              (){ all_cmds_check "${common_cmds[@]}" "${butt_no_filter[@]}"; }
@@ -734,7 +736,7 @@ play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_fil
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
+
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
