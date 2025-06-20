@@ -736,7 +736,6 @@ play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_fil
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
-
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"  "${butt_no_filter[@]}"; }
