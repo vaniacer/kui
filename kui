@@ -38,6 +38,9 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      configmap         Configmaps
      endpoint          Endpoints
      secret            Secrets
+     ''                '' #delimiter
+     pvc               'Persistent Volume Claim'
+     pv                'Persistent Volume'
 )
 
 quick_pod_name=busytest          # Pod name for simple test pod
@@ -739,7 +742,8 @@ play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"        "${butt_
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
-
+play_with_pvc              (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_pv               (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
 for conf in $CONFILES; do
