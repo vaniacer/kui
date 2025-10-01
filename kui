@@ -107,6 +107,7 @@ cmds_regen(){  # Commands to run, list will be updated
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
                    Delete                "Delete this $type"
+                  'Manual run'           "Manually run this $type"
                   "${edit_cmds[@]}"                                                                   )
      node_cmds=(   Condom                "Make this $type unschedulable"
                    Uncondome             "Make this $type schedulable again"
@@ -703,6 +704,11 @@ all_cmds_check(){
                delete:0) kube_cmd="${cmd,,} $type/$object $ns"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
+
+         'manual run':0) # cronjob manual run
+                         kube_cmd="create job ${object// }-manual-run --from=cronjob/$object $ns"
+                         sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
+                         clear; kube $kube_cmd; pause;;
 
           termination:0) kube_cmd="delete $type/$object $ns --force --grace-period=0"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
