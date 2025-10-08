@@ -118,6 +118,10 @@ cmds_regen(){  # Commands to run, list will be updated
 
                   ''                     ''  # delimiter
                   "${top_cmds[@]}"                                                                    )
+   secret_cmds=(  "${descr_cmds[@]}"
+                  "SSL update"           "Update SSL certificate and key in this $type"
+                  "${delete_cmds[@]}"
+                                                                                                      )
       pod_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                    Logs                  "Get $type logs"
@@ -710,6 +714,33 @@ all_cmds_check(){
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          clear; kube $kube_cmd; pause;;
 
+         'ssl update':0) # patch kubernetes.io/tls secret with new cert/key
+                         printf -v ssl_patch_data '{"data": {"tls.crt": "%s", "tls.key": "%s"}}' "$(base64 -w0 tls.crt)" "$(base64 -w0 tls.key)"
+                         sure "Sure to run \Z1kubectl patch $type/$object $ns --patch='{"data": {"tls.crt": "***", "tls.key": "***"}}'\Z0?" || play_with_$type
+                         WAIT
+                         # check files
+                         [[ -f tls.crt ]] || {
+                             GO
+                             echo "tls.crt not found"
+                             pause
+                             play_with_$type
+                         }
+                         [[ -f tls.key ]] || {
+                             GO
+                             echo "tls.key not found"
+                             pause
+                             play_with_$type
+                         }
+                         # check secret type
+                         kube $ns get $type/$object | grep -q 'kubernetes.io/tls' || {
+                             GO
+                             echo "Secret type is not 'kubernetes.io/tls'"
+                             pause
+                             play_with_$type
+                         }
+                         out=$(kube patch $type/$object $ns --patch="$ssl_patch_data" 2>&1); GO
+                         echo "$out"; pause;;
+
           termination:0) kube_cmd="delete $type/$object $ns --force --grace-period=0"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
@@ -735,9 +766,9 @@ play_with_statefulset      (){ all_cmds_check "${common_cmds[@]}"       "${scale
 play_with_node             (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${node_cmds[@]}"          "${butt_no_filter[@]:0:10}"; }
 play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollout_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"          "${butt_no_filter[@]}"; }
-play_with_secret           (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${delete_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_secret           (){ all_cmds_check "${secret_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"          "${butt_no_filter[@]}"; }
 play_with_job              (){ all_cmds_check "${common_cmds[@]}"       "${butt_no_filter[@]}"; }
