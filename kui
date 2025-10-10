@@ -61,9 +61,9 @@ spec:
 outputypes=(json yaml wide name)
 printf -v outputypes_list '%s|' ${outputypes[@]}
 cmds_regen(){  # Commands to run, list will be updated
-               #-----------------------+--------------------------------------------------------------+
-               #   Command name        |   Description                                                |
-               #-----------------------+--------------------------------------------------------------+
+#--------------+----------------------+--------------------------------------------------------------+
+#   Set name   |  Command name        |   Description                                                |
+#--------------+----------------------+--------------------------------------------------------------+
     quick_butt=(  ''     ''              "$quickl" "$quickd"
                   "$F_BUTT"              "Filter items               "
                   "$N_BUTT"              "Go to namespace selection  "
@@ -72,15 +72,21 @@ cmds_regen(){  # Commands to run, list will be updated
                   "$D_BUTT"              "Go to node selection"
                   "$P_BUTT"              "Go to top node selection"
                   "$W_BUTT"              "Watch for a while how it's going"
-                  "$R_BUTT"              "Create simple test pod"                                     )
+                  "$R_BUTT"              "Create simple test pod"                                    )
+#--------------+----------------------+--------------------------------------------------------------+
     descr_cmds=(   Get                   "Get this $type"
                    Describe              "Describe this $type"
-                   Output                "Change output mode to: ${outputypes_list%|}"                )
-     edit_cmds=(   Edit                  "Edit this $type"                                            )
-    label_cmds=(   Label                 "Set this $type as label"                                    )
-    scale_cmds=(   Scale                 "Change number of replicas in this $type"                    )
+                   Output                "Change output mode to: ${outputypes_list%|}"               )
+#--------------+----------------------+--------------------------------------------------------------+
+     edit_cmds=(   Edit                  "Edit this $type"                                           )
+#--------------+----------------------+--------------------------------------------------------------+
+    label_cmds=(   Label                 "Set this $type as label"                                   )
+#--------------+----------------------+--------------------------------------------------------------+
+    scale_cmds=(   Scale                 "Change number of replicas in this $type"                   )
+#--------------+----------------------+--------------------------------------------------------------+
    delete_cmds=(   Delete                "Delete this $type"
-                   Termination           "Delete this $type using --force"                            )
+                   Termination           "Delete this $type using --force"                           )
+#--------------+----------------------+--------------------------------------------------------------+
    common_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                    Logs                  "Get $type logs"
@@ -89,26 +95,33 @@ cmds_regen(){  # Commands to run, list will be updated
                    Container             'Select container to run command or get logs from'
                   "${edit_cmds[@]}"
                   ''                     ''  # delimiter
-                  "${delete_cmds[@]}"                                                                 )
+                  "${delete_cmds[@]}"                                                                )
+#--------------+----------------------+--------------------------------------------------------------+
       top_cmds=(  "Top $type"            "Show metrics for this $type"
-                  "Top ${type}s"         "Show metrics for all ${type}s"                              )
+                  "Top ${type}s"         "Show metrics for all ${type}s"                             )
+#--------------+----------------------+--------------------------------------------------------------+
   rollout_cmds=(  'Rollout restart'      "Restart this $type"
                   'Rollout status '      "Show the status of this $type's rollout"
                   'Rollout pause  '      "Mark the provided this $type as paused"
                   'Rollout resume '      "Resume this paused $type"
                   'Rollout undo   '      "Undo a previous rollout of this $type"
-                  'Rollout history'      "View rollout history of this $type"                         )
+                  'Rollout history'      "View rollout history of this $type"                        )
+#--------------+----------------------+--------------------------------------------------------------+
      exec_cmds=(  "Execute $KUBCMD"      "Run '\Z1$KUBCMD\Z0' command inside this $type"
-                  'Change command'       "Change the command"                                         )
+                  'Change command'       "Change the command"                                        )
+#--------------+----------------------+--------------------------------------------------------------+
      pfwd_cmds=(  'Port-forward'         "Forward local port \Z2$LOCAL\Z0 to pods port \Z2$REMOTE\Z0"
                   'Change local port'    "Change local(\Z2$LOCAL\Z0) port"
-                  "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                           )
-    shell_cmds=(  'Interactive shell'    "Open an interactive shell inside this $type"                )
+                  "Change pod's port"    "Change pod's(\Z2$REMOTE\Z0) port"                          )
+#--------------+----------------------+--------------------------------------------------------------+
+    shell_cmds=(  'Interactive shell'    "Open an interactive shell inside this $type"               )
+#--------------+----------------------+--------------------------------------------------------------+
      cron_cmds=(  'Suspend'              "Suspend this $type"
                   'Unsuspend'            "Unsuspend this $type"
                    Delete                "Delete this $type"
                   'Manual run'           "Manually run this $type"
-                  "${edit_cmds[@]}"                                                                   )
+                  "${edit_cmds[@]}"                                                                  )
+#--------------+----------------------+--------------------------------------------------------------+
      node_cmds=(   Condom                "Make this $type unschedulable"
                    Uncondome             "Make this $type schedulable again"
                    Drain                 "Drain this $type in preparation for maintenance"
@@ -117,11 +130,17 @@ cmds_regen(){  # Commands to run, list will be updated
                   'Top node pods'        "Show top pods of this node"
 
                   ''                     ''  # delimiter
-                  "${top_cmds[@]}"                                                                    )
+                  "${top_cmds[@]}"                                                                   )
+#--------------+----------------------+--------------------------------------------------------------+
    secret_cmds=(  "${descr_cmds[@]}"
                   "SSL update"           "Update SSL certificate and key in this $type"
-                  "${delete_cmds[@]}"
-                                                                                                      )
+                  "${delete_cmds[@]}"                                                                )
+#--------------+----------------------+--------------------------------------------------------------+
+      pvc_cmds=(  "${descr_cmds[@]}"
+                  "PVC Usage"            "Show this $type usage"
+                  ''                     ''  # delimiter
+                  "${delete_cmds[@]}"                                                                )
+#--------------+----------------------+--------------------------------------------------------------+
       pod_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                    Logs                  "Get $type logs"
@@ -138,7 +157,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   ''                     ''  # delimiter
                   "${exec_cmds[@]}"
                   ''                     ''  # delimiter
-                  "${pfwd_cmds[@]}"                                                                   )
+                  "${pfwd_cmds[@]}"                                                                  )
+#--------------+----------------------+--------------------------------------------------------------+
      depl_cmds=(  "${common_cmds[@]}"
                   ''                     ''  # delimiter
                   "${label_cmds[@]}"
@@ -149,7 +169,8 @@ cmds_regen(){  # Commands to run, list will be updated
                   ''                     ''  # delimiter
                   "${exec_cmds[@]}"
                   ''                     ''  # delimiter
-                  "${pfwd_cmds[@]}"                                                                   )
+                  "${pfwd_cmds[@]}"                                                                  )
+#--------------+----------------------+--------------------------------------------------------------+
 }; cmds_regen
 
 confile=~/.kdrc
@@ -741,6 +762,21 @@ all_cmds_check(){
                          out=$(kube patch $type/$object $ns --patch="$ssl_patch_data" 2>&1); GO
                          echo "$out"; pause;;
 
+          'pvc usage':0) # Show selected PVC usage
+                         WAIT
+                         pvc_capacity=$(kube $ns get $type/$object -o jsonpath='{.status.capacity.storage}')
+                         pvc_used_in=$(kube $ns get po -o jsonpath='{range .items[*]}{.metadata.name}{" "}{range .spec.volumes[*]}{.name}{" "}{.persistentVolumeClaim.claimName}{" \n"}{end}{end}' | grep " ${object// } ")
+                         raw=($pvc_used_in)
+                         pod_name=${raw[0]}
+                         mnt_name=${raw[1]}
+                         pod_mount_name=$(kube $ns get po/$pod_name -o jsonpath='{range .spec.containers[*]}{range .volumeMounts[*]}{.name}{" "}{.mountPath}{"\n"}{end}{end}' | awk "/$mnt_name /"'{print $2}')
+                         pvc_usage=$(kube $ns exec po/$pod_name -- df -h $pod_mount_name 2>/dev/null)
+                         GO
+                         echo "PVC capacity: $pvc_capacity"
+                         echo "PVC used in:"; echo "$pvc_used_in"
+                         echo "PVC usage:"  ; echo "$pvc_usage"
+                         pause;;
+
           termination:0) kube_cmd="delete $type/$object $ns --force --grace-period=0"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
@@ -771,6 +807,8 @@ play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_
 play_with_secret           (){ all_cmds_check "${secret_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_pvc              (){ all_cmds_check "${pvc_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_pv               (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_job              (){ all_cmds_check "${common_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
@@ -779,8 +817,6 @@ play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"        "${butt_
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
-play_with_pvc              (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
-play_with_pv               (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
 for conf in $CONFILES; do
