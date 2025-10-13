@@ -41,6 +41,7 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      ''                '' #delimiter
      pvc               'Persistent Volume Claim'
      pv                'Persistent Volume'
+     volumeattachment  'Volume Attachment'
 )
 
 quick_pod_name=busytest          # Pod name for simple test pod
@@ -138,6 +139,10 @@ cmds_regen(){  # Commands to run, list will be updated
 #--------------+----------------------+--------------------------------------------------------------+
       pvc_cmds=(  "${descr_cmds[@]}"
                   "PVC Usage"            "Show this $type usage"
+                  ''                     ''  # delimiter
+                  "${delete_cmds[@]}"                                                                )
+#--------------+----------------------+--------------------------------------------------------------+
+      vac_cmds=(  "${descr_cmds[@]}"
                   ''                     ''  # delimiter
                   "${delete_cmds[@]}"                                                                )
 #--------------+----------------------+--------------------------------------------------------------+
@@ -808,6 +813,7 @@ play_with_secret           (){ all_cmds_check "${secret_cmds[@]}"       "${butt_
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"          "${butt_no_filter[@]}"; }
 play_with_pvc              (){ all_cmds_check "${pvc_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_volumeattachment (){ all_cmds_check "${vac_cmds[@]}"          "${butt_no_filter[@]}"; }
 play_with_pv               (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_job              (){ all_cmds_check "${common_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_componentstatuse (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
