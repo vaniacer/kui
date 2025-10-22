@@ -579,7 +579,7 @@ watch_for_a_while(){
                     All:*   ) data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels);;
                       *:*   ) data=$(kube ${1:-get} $type $ns $with_labels);;
         esac
-        clear; echo "$data"; echo; echo "Press x to stop watching this..."
+        clear; echo "$data" | grep -E "NAME|$fpattern"; echo; echo "Press x to stop watching this..."
         read -srn1 -t3 answer
         [[ $answer =~ x|X ]] && return
     done
