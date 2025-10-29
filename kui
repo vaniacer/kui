@@ -42,6 +42,8 @@ OBJ_LIST=(       # k8s objects to observe, list will be updated
      pvc               'Persistent Volume Claim'
      pv                'Persistent Volume'
      volumeattachment  'Volume Attachment'
+     ''                '' #delimiter
+     helm              'Helm charted instances'
 )
 
 quick_pod_name=busytest          # Pod name for simple test pod
@@ -177,6 +179,11 @@ cmds_regen(){  # Commands to run, list will be updated
                   ''                     ''  # delimiter
                   "${pfwd_cmds[@]}"                                                                  )
 #--------------+----------------------+--------------------------------------------------------------+
+     helm_cmds=(  'helm status'          "Display the status of the named release"
+                  'helm get manifest'    "Get the manifest for a named release"
+                  'helm history'         "Fetch release history"
+                  'helm rollback'        "Roll back a release to a previous revision"                )
+#--------------+----------------------+--------------------------------------------------------------+
 }; cmds_regen
 
 confile=~/.kdrc
@@ -251,7 +258,8 @@ pause () {
 }
 
 #------------------------{ kubectl starter }-------------------------------------------------------
-kube(){ kubectl --kubeconfig="$kubconfig" "$@"; }
+kube(){ KUBECONFIG=$kubconfig kubectl "$@"; }
+kelm(){ KUBECONFIG=$kubconfig helm    "$@"; }
 
 #------------------------{ Exit function }---------------------------------------------------------
 bye () {
@@ -561,6 +569,7 @@ get_objects(){       with_labels=
     [[ $labels ]] && with_labels="-l $labels"
     case $namespace:$type in
                   *:node) WAIT; data=$(kube ${1:-get} $type $with_labels); GO; [[ ${namespace,,} =~ all ]] && namespace=;;
+                  *:helm) WAIT; data=$(kelm list $ns | sed -r 's/\t/ /g; /APP VERSION/s//APP_VERSION/; /([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}) (\+[0-9]{4}) UTC/s//\1_\2_\3_UTC/'); GO;;
                 All:*   ) WAIT; data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
                   *:*   ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
     esac
@@ -742,6 +751,16 @@ all_cmds_check(){
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
                          WAIT; kube $kube_cmd &> /dev/null; GO; objects=(); select_object;;
 
+        'helm status':0) WAIT; data=$(kelm status       ${object// } $ns 2>&1); GO; echo "$data"; pause;;
+  'helm get manifest':0) WAIT; data=$(kelm get manifest ${object// } $ns 2>&1); GO; echo "$data"; pause;;
+       'helm history':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1); GO; echo "$data"; pause;;
+      'helm rollback':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1 | tail -n+2)
+                         while read -r rev desc; do data_arr+=($rev "$desc"); done <<< "$data"; GO
+                         revision=$(D menu "Select revision" SELECT BACK '' "${data_arr[@]}")
+                         case $revision:$? in
+                                     '':0) :;;
+                                 [0-9]*:0) WAIT; data=$(kelm rollback ${object// } $revision $ns 2>&1); GO; echo "$data"; pause
+                         esac;;
          'manual run':0) # cronjob manual run
                          kube_cmd="create job ${object// }-manual-run --from=cronjob/$object $ns"
                          sure "Sure to run \Z1kubectl $kube_cmd\Z0?" || play_with_$type
@@ -830,6 +849,7 @@ play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"        "${butt_
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
+play_with_helm             (){ all_cmds_check "${helm_cmds[@]}"         "${butt_no_filter[@]}"; }
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
 declare  -A clusters
 for conf in $CONFILES; do
