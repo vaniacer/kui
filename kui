@@ -83,7 +83,9 @@ cmds_regen(){  # Commands to run, list will be updated
 #--------------+----------------------+--------------------------------------------------------------+
      edit_cmds=(   Edit                  "Edit this $type"                                           )
 #--------------+----------------------+--------------------------------------------------------------+
-    label_cmds=(   Label                 "Set this $type as label"                                   )
+    label_cmds=(   Label                 "Set this $type as label"
+                  'Add label'            "Add a label to this $type"
+                  'Del label'            "Remove a label from this $type"                            )
 #--------------+----------------------+--------------------------------------------------------------+
     scale_cmds=(   Scale                 "Change number of replicas in this $type"                   )
 #--------------+----------------------+--------------------------------------------------------------+
@@ -182,7 +184,8 @@ cmds_regen(){  # Commands to run, list will be updated
      helm_cmds=(  'helm status'          "Display the status of the named release"
                   'helm get manifest'    "Get the manifest for a named release"
                   'helm history'         "Fetch release history"
-                  'helm rollback'        "Roll back a release to a previous revision"                )
+                  'helm rollback'        "Roll back a release to a previous revision"
+                  'helm uninstall'       "Uninstall this release"                                    )
 #--------------+----------------------+--------------------------------------------------------------+
 }; cmds_regen
 
@@ -754,6 +757,7 @@ all_cmds_check(){
         'helm status':0) WAIT; data=$(kelm status       ${object// } $ns 2>&1); GO; echo "$data"; pause;;
   'helm get manifest':0) WAIT; data=$(kelm get manifest ${object// } $ns 2>&1); GO; echo "$data"; pause;;
        'helm history':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1); GO; echo "$data"; pause;;
+     'helm uninstall':0) WAIT; data=$(kelm uninstall    ${object// } $ns 2>&1); GO; echo "$data"; pause; select_object;;
       'helm rollback':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1 | tail -n+2)
                          while read -r rev desc; do data_arr+=($rev "$desc"); done <<< "$data"; GO
                          revision=$(D menu "Select revision" SELECT BACK '' "${data_arr[@]}")
