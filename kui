@@ -757,7 +757,8 @@ all_cmds_check(){
         'helm status':0) WAIT; data=$(kelm status       ${object// } $ns 2>&1); GO; echo "$data"; pause;;
   'helm get manifest':0) WAIT; data=$(kelm get manifest ${object// } $ns 2>&1); GO; echo "$data"; pause;;
        'helm history':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1); GO; echo "$data"; pause;;
-     'helm uninstall':0) WAIT; data=$(kelm uninstall    ${object// } $ns 2>&1); GO; echo "$data"; pause; objects=(); select_object;;
+     'helm uninstall':0) sure "Sure to run \Z1helm uninstall ${object// }\Z0?" || play_with_$type
+                         WAIT; data=$(kelm uninstall    ${object// } $ns 2>&1); GO; echo "$data"; pause; objects=(); select_object;;
       'helm rollback':0) WAIT; data=$(kelm history      ${object// } $ns 2>&1 | tail -n+2)
                          while read -r rev desc; do data_arr+=($rev "$desc"); done <<< "$data"; GO
                          revision=$(D menu "Select revision" SELECT BACK '' "${data_arr[@]}")
