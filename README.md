@@ -4,7 +4,7 @@
 [![paypal](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/sshto?locale.x=en_US) <sup>Feel free to support the project!)</sup>
 </br>
 
-![kui](https://github.com/user-attachments/assets/c8f1ab0a-fa65-49d7-b069-1aad8fb9bfa8)
+![kui](https://github.com/user-attachments/assets/53f9d195-2022-4f77-ab2e-58e2bcc56fde)
 
 Dialog wrapper for kubectl utility to ease your work with k8s from CLI.</br>
 Start from selecting cluster. Clusters grabbed from config files in <b>~/.kube</b> dir.
