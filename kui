@@ -840,6 +840,7 @@ play_with_daemonset        (){ all_cmds_check "${common_cmds[@]}" '' '' "${rollo
 play_with_cronjob          (){ all_cmds_check "${descr_cmds[@]}"  '' '' "${cron_cmds[@]}"          "${butt_no_filter[@]}"; }
 play_with_replicaset       (){ all_cmds_check "${common_cmds[@]}"       "${scale_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_configmap        (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"          "${butt_no_filter[@]}"; }
+play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${edit_cmds[@]}"          "${butt_no_filter[@]}"; }
 play_with_secret           (){ all_cmds_check "${secret_cmds[@]}"       "${butt_no_filter[@]}"; }
 play_with_deployment       (){ all_cmds_check "${depl_cmds[@]}"         "${butt_no_filter[@]}"; }
 play_with_pod              (){ all_cmds_check "${pod_cmds[@]}"          "${butt_no_filter[@]}"; }
@@ -852,7 +853,6 @@ play_with_serviceaccount   (){ all_cmds_check "${descr_cmds[@]}"        "${butt_
 play_with_podtemplate      (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_limitrange       (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_endpoint         (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
-play_with_service          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_ingress          (){ all_cmds_check "${descr_cmds[@]}"        "${butt_no_filter[@]}"; }
 play_with_helm             (){ all_cmds_check "${helm_cmds[@]}"         "${butt_no_filter[@]}"; }
 #-------------{ Create clusters list. Get cluster names from ~/.kube/config* }---------------------
