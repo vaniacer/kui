@@ -573,7 +573,34 @@ get_objects(){       with_labels=
     case $namespace:$type in
                   *:node) WAIT; data=$(kube ${1:-get} $type $with_labels); GO; [[ ${namespace,,} =~ all ]] && namespace=;;
                   *:helm) WAIT; data=$(kelm list $ns | sed -r 's/\t/ /g; /APP VERSION/s//APP_VERSION/; /([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}) (\+[0-9]{4}) UTC/s//\1_\2_\3_UTC/'); GO;;
-                All:*   ) WAIT; data=$(kube ${1:-get} $type $ns -o custom-columns="$custom_columns" $with_labels); GO;;
+                  *:pod*) WAIT
+                          data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns="NAME":.metadata.name",NODE":.spec.nodeName,"IP":.status.podIP & kube ${1:-get} $type $ns $with_labels)
+                          data=$(
+                              awk '{
+                                    name=$1
+                                    if(NF >  3){
+                                        l=length($0)
+                                        if(l>size){size=l}
+                                        if(name ~ "NAME"){head1=$0}
+                                        store1[name]=$0
+                                    }
+                                    if(NF == 3){
+                                        if(name ~ "NAME"){head2=$0}
+                                        store2[name]=$0
+                                    }
+                                }
+                                END {
+                                    PROCINFO["sorted_in"]="@ind_str_asc"
+                                    pat=("%-" size "s" "   %s\n")
+                                    printf(pat, head1, gensub("^NAME +","","g",head2))
+                                    for(n in store1){
+                                        if(n ~ "NAME"){continue}
+                                        printf(pat, store1[n], gensub("^[[:graph:]]+ +","","g",store2[n]))
+                                    }
+                              }' <<< "$data"
+                          )
+                          GO;;
+                All:*   ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
                   *:*   ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels); GO;;
     esac
     objlist_gen
