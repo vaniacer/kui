@@ -581,11 +581,11 @@ get_objects(){       with_labels=
                                     if(NF >  3){
                                         l=length($0)
                                         if(l>size){size=l}
-                                        if(name ~ "NAME"){head1=$0}
+                                        if(name ~ "NAME"){head1=$0; next}
                                         store1[name]=$0
                                     }
                                     if(NF == 3){
-                                        if(name ~ "NAME"){head2=$0}
+                                        if(name ~ "NAME"){head2=$0; next}
                                         store2[name]=$0
                                     }
                                 }
