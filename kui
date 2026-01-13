@@ -594,7 +594,6 @@ get_objects(){       with_labels=
                                     pat=("%-" size "s" "   %s\n")
                                     printf(pat, head1, gensub("^NAME +","","g",head2))
                                     for(n in store1){
-                                        if(n ~ "NAME"){continue}
                                         printf(pat, store1[n], gensub("^[[:graph:]]+ +","","g",store2[n]))
                                     }
                               }' <<< "$data"
