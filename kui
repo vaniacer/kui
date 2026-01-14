@@ -573,7 +573,8 @@ get_objects(){       with_labels=
     case $namespace:$type in
                   *:node) WAIT; data=$(kube ${1:-get} $type $with_labels); GO; [[ ${namespace,,} =~ all ]] && namespace=;;
                   *:helm) WAIT; data=$(kelm list $ns | sed -r 's/\t/ /g; /APP VERSION/s//APP_VERSION/; /([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}) (\+[0-9]{4}) UTC/s//\1_\2_\3_UTC/'); GO;;
-                  *:pod*) WAIT
+                All:pod ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns="$custom_columns"); GO;;
+                  *:pod ) WAIT
                           data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns="NAME":.metadata.name",NODE":.spec.nodeName,"IP":.status.podIP & kube ${1:-get} $type $ns $with_labels)
                           data=$(
                               awk '{
