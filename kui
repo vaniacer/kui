@@ -15,6 +15,7 @@
   R_BUTT='8     create pod           ' # Create simple test pod
 CONFILES=$(echo ~/.kube/{config,config*[!~]}) # k8s confiles list.
 OBJ_LIST=(       # k8s objects to observe, list will be updated
+
 #--------------------+---------------------+
 #    type            |   name in menu      |
 #--------------------+---------------------+
@@ -60,6 +61,24 @@ spec:
     image: $quick_pod_image
     command: ['sh', '-c', '$quick_pod_command']
 "
+#------------------------{ Help and version }--------------------------------------------------------+
+version=1.0000000000000000000000000000000000000000001
+help="kui - kubectl user interface, powered by Dialog
+
+Usage:
+  kui [options]
+
+Options:
+  -v, --v, -version, --version, version    Show kui version
+  -h, --h, -help, --help, help             Show this help message
+
+Configuration:
+  kui reads configs from $CONFILES
+"
+case ${1,,} in
+    -v|--v|-version|--version|version) echo "$version"; exit;;
+    -h|--h|-help|--help|help         ) echo "$help"   ; exit;;
+esac
 
 outputypes=(json yaml wide name)
 printf -v outputypes_list '%s|' ${outputypes[@]}
@@ -140,6 +159,7 @@ cmds_regen(){  # Commands to run, list will be updated
 #--------------+----------------------+--------------------------------------------------------------+
    secret_cmds=(  "${descr_cmds[@]}"
                   "SSL update"           "Update SSL certificate and key in this $type"
+                  "Debase64"             "Read this $type and decode all base64 encoded data"
                   "${delete_cmds[@]}"                                                                )
 #--------------+----------------------+--------------------------------------------------------------+
       pvc_cmds=(  "${descr_cmds[@]}"
@@ -572,10 +592,10 @@ get_objects(){       with_labels=
     [[ $labels ]] && with_labels="-l $labels"
     case $namespace:$type in
                   *:node) WAIT; data=$(kube ${1:-get} $type $with_labels); GO; [[ ${namespace,,} =~ all ]] && namespace=;;
-                  *:helm) WAIT; data=$(kelm list $ns | sed -r 's/\t/ /g; /APP VERSION/s//APP_VERSION/; /([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}) (\+[0-9]{4}) UTC/s//\1_\2_\3_UTC/'); GO;;
+                  *:helm) WAIT; data=$(kelm ls --all $ns | sed -r 's/\t/ /g; /APP VERSION/s//APP_VERSION/; /([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{9}) (\+[0-9]{4}) UTC/s//\1_\2_\3_UTC/'); GO;;
                 All:pod ) WAIT; data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns="$custom_columns"); GO;;
                   *:pod ) WAIT
-                          data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns="NAME":.metadata.name",NODE":.spec.nodeName,"IP":.status.podIP & kube ${1:-get} $type $ns $with_labels)
+                          data=$(kube ${1:-get} $type $ns $with_labels -o=custom-columns=NAME:.metadata.name,NODE:.spec.nodeName,IP:.status.podIP & kube ${1:-get} $type $ns $with_labels)
                           data=$(
                               awk '{
                                     name=$1
@@ -824,6 +844,22 @@ all_cmds_check(){
                          }
                          out=$(kube patch $type/$object $ns --patch="$ssl_patch_data" 2>&1); GO
                          echo "$out"; pause;;
+
+           'debase64':0) # read cert (secret) and output ca.crt, tls.crt and tls.key in 'base64 -d' way
+                         WAIT
+                         secret_json=$(kube $ns get $type/$object -o json)
+                         GO
+                         grep -q 'kubernetes.io/tls' <<< "$secret_json" || {
+                             echo "Secret type is not 'kubernetes.io/tls'"
+                             pause
+                             play_with_$type
+                         }
+                         for t in ca.crt tls.crt tls.key; do
+                             tmp=$(jq -r ".data.\"$t\" | select(. != null) | @base64d" 2>/dev/null <<< "$secret_json")
+                             [[ ${tmp//null} ]] && printf '%s:\n%s\n\n' "$t" "$tmp"
+                         done
+                         pause
+                         play_with_$type;;
 
           'pvc usage':0) # Show selected PVC usage
                          WAIT
