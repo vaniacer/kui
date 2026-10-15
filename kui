@@ -62,7 +62,7 @@ spec:
     command: ['sh', '-c', '$quick_pod_command']
 "
 #------------------------{ Help and version }--------------------------------------------------------+
-version=1.0000000000000000000000000000000000000000001
+version=1.0000000000000000000000000000000000000000002
 help="kui - kubectl user interface, powered by Dialog
 
 Usage:
@@ -158,7 +158,7 @@ cmds_regen(){  # Commands to run, list will be updated
                   "${top_cmds[@]}"                                                                   )
 #--------------+----------------------+--------------------------------------------------------------+
    secret_cmds=(  "${descr_cmds[@]}"
-                  "SSL update"           "Update SSL certificate and key in this $type"
+                  "SSL update"           "Update SSL certificate and key in this $type from files: tls.crt and tls.key"
                   "Debase64"             "Read this $type and decode all base64 encoded data"
                   "${delete_cmds[@]}"                                                                )
 #--------------+----------------------+--------------------------------------------------------------+
